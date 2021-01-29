@@ -122,6 +122,7 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - stops and removes all current containers, like 'docker stop && docker rm'"
     echo -e "    ${COLOR_BLUE}watch-running ${COLOR_RED}\$cn${COLOR_WHITE}  - tests, whether a container with name '\$cn' is running and returns 'TRUE' or 'FALSE' as a string"
     echo -e "    ${COLOR_BLUE}status ${COLOR_RED}[\$fn]${COLOR_WHITE}       - creates a text file [\$fn] in current location that contains a list of images and runninge containers on this machine"
+    echo -e "    ${COLOR_BLUE}init-certs${COLOR_WHITE}         - create openssl certificates to be registered in your browsers"
     echo
 
     exit 0
@@ -140,6 +141,7 @@ PROXY_PATH=${PROXY_PATH%/}
 ENV_FILE=".env"
 CURRENT_DIR=`pwd`
 LINUX_HOSTS=/etc/hosts
+CERTS_PATH="$PROXY_PATH/certs"
 STATUS_FILE_NAME="docker_current.txt"
 TEMP_HOSTS_FILE=".current-hosts"
 TEMP_HOSTS_PATH="$PROXY_PATH/$TEMP_HOSTS_FILE"
@@ -412,6 +414,12 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             exit 1
         fi
 
+        # check the /certs directory
+        if [[ ! -d "$CERTS_PATH" || ! -f "$CERTS_PATH/docker.test.key" ]]; then
+            print_error "The proxy is not ready to start, yet! Try 'DockerExec do init-certs' to fix this."
+            exit 1
+        fi
+
         # fetch parameters from .env file
         PROXY_NAME=`grep "^PROXY_NAME=" "$ENV_FILE" | sed -e 's/^PROXY_NAME=//' | sed -e 's/[[:space:]]*$//'`
         NETWORK_NAME=`grep "^NETWORK_NAME=" "$ENV_FILE" | sed -e 's/^NETWORK_NAME=//' | sed -e 's/[[:space:]]*$//'`
@@ -657,6 +665,132 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
                 print_error "Canceled..." 1
                 ;;
         esac
+
+        exit 0
+
+    # use prompts to generate certificates for browser usage
+    # see https://gist.github.com/fntlnz/cf14feb5a46b2eda428e000157447309
+    # see https://two-oes.medium.com/working-with-openssl-and-dns-alternative-names-367f06a23841
+    # see https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
+    # to test a .crt file, try: openssl x509 -in certs/docker.test.crt -text -noout
+    elif [[ "init-certs" == "$ACTION" ]]; then
+        if [[ -z `which openssl` ]]; then
+            print_error "Openssl seems not to be installed on this machine. But it is necessary to generate keys..." 1
+            exit 1
+        fi
+
+        # create the certs path, if not done, yet
+        if [[ ! -d "$CERTS_PATH" ]]; then
+            mkdir -p "$CERTS_PATH"
+        fi
+
+        # some security info
+        print_info "Attention: This is the key used to sign the certificate requests. Anyone holding this can sign certificates on your behalf. So keep it safe!"
+
+        # ask the user for some details on the certificate
+        read -r -p "Define a key size. Default is 4096, which does a good job in security. [4096]: " rsa_key_length
+        read -r -p "How long shall this certificate be valid (in days) [3650]: " rsa_valid_days
+        read -r -p "Add an organisation name to differ certain keys [none]: " rsa_org_name
+
+        RSA_KEY_LENGTH=4096
+        if [[ ! -z "$rsa_key_length" ]]; then
+            RSA_KEY_LENGTH=$rsa_key_length
+        fi
+
+        RSA_VALID_DAYS=3650
+        if [[ ! -z "$rsa_valid_days" ]]; then
+            RSA_VALID_DAYS=$rsa_valid_days
+        fi
+
+        RSA_ORG_NAME="Docker Development"
+        if [[ ! -z "$rsa_org_name" ]]; then
+            RSA_ORG_NAME="$rsa_org_name"
+        fi
+
+        # create config files for openssl
+        cat > "$CERTS_PATH/domain.config" << EOF
+[req]
+default_bits = $RSA_KEY_LENGTH
+prompt = no
+default_md = sha256
+x509_extensions = req_ext
+req_extensions = req_ext
+distinguished_name = dn
+
+[ dn ]
+O = $RSA_ORG_NAME
+OU = Docker Proxy Stack
+CN = docker.test
+
+[ req_ext ]
+subjectAltName = @alt_names
+extendedKeyUsage = serverAuth
+basicConstraints = critical, CA:false
+
+[ alt_names ]
+DNS.1 = docker.test
+DNS.2 = *.docker.test
+DNS.3 = localhost
+IP.4 = 127.0.0.1
+IP.5 = 0:0:0:0:0:0:0:1
+EOF
+
+        cat > "$CERTS_PATH/ca.config" << EOF
+[req]
+default_bits = $RSA_KEY_LENGTH
+prompt = no
+default_md = sha256
+x509_extensions = usr_cert
+distinguished_name = dn
+
+[ dn ]
+O = $RSA_ORG_NAME
+OU = Docker Proxy Stack
+CN = Docker Proxy Stack
+
+[ usr_cert ]
+keyUsage = critical, keyCertSign
+basicConstraints = critical, @basic_constraints
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid, issuer
+
+[ basic_constraints ]
+CA = true
+pathlen = 0
+EOF
+
+        # create a root key and rootCA for docker.test
+        openssl genrsa -out "$CERTS_PATH/rootCA.key" $RSA_KEY_LENGTH
+        openssl req -new -x509 -nodes -key "$CERTS_PATH/rootCA.key" \
+            -days $RSA_VALID_DAYS \
+            -out "$CERTS_PATH/rootCA.crt" \
+            -config <( cat "$CERTS_PATH/ca.config" )
+
+        # create a certificate for docker.test
+        openssl genrsa -out "$CERTS_PATH/docker.test.key" $RSA_KEY_LENGTH
+        openssl req -new -x509 -nodes -key "$CERTS_PATH/docker.test.key" \
+            -days $RSA_VALID_DAYS \
+            -out "$CERTS_PATH/docker.test.csr" \
+            -config <( cat "$CERTS_PATH/domain.config" )
+
+        # last step: sign the domain certificate with the rootCA
+        openssl x509 -req -CAcreateserial \
+            -in "$CERTS_PATH/docker.test.csr" \
+            -CA "$CERTS_PATH/rootCA.crt" \
+            -CAkey "$CERTS_PATH/rootCA.key" \
+            -out "$CERTS_PATH/docker.test.crt" \
+            -days $RSA_VALID_DAYS \
+            -extensions 'req_ext' \
+            -extfile <(cat "$CERTS_PATH/domain.config" )
+
+        # rm the temporary config files
+        if [[ -f "$CERTS_PATH/domain.config" ]]; then
+            rm -f "$CERTS_PATH/domain.config"
+        fi
+
+        if [[ -f "$CERTS_PATH/ca.config" ]]; then
+            rm -f "$CERTS_PATH/ca.config"
+        fi
 
         exit 0
 

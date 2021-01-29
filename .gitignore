@@ -4,3 +4,10 @@ tags
 /conf/default.conf
 /dhparam
 /data
+
+### certificates
+/certs/docker.test.crt
+/certs/docker.test.csr
+/certs/docker.test.key
+/certs/rootCA.crt
+/certs/rootCA.key
