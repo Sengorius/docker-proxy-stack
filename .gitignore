@@ -1,7 +1,9 @@
 /.idea
+tags
+
+# environment files
 .env
 .current-hosts
-tags
+
+# nginx conf
 /conf/default.conf
-/dhparam
-/data
