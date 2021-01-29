@@ -17,7 +17,8 @@ supports
 
 ### So why do we do all this?
 
-If you are running multiple web applications on one machine at the same time
+
+If you are running multiple web applications on one machine at the same time 
 you are running into a couple of issues.  
 If your projects are already dockerized, every `docker-compose` file will
 
@@ -44,31 +45,31 @@ ressources. So
 1. Install Docker and Docker Compose.
 1. Clone the repository.
 1. Configure and create a root certificate
-    - run `DockerExec create-cert` and follow the prompts. This should create a
-      `certs` folder containing mkcert root certificates and the mkcert key and
-      certificate.
+   - run `DockerExec create-cert` and follow the prompts. This should create a
+   `certs` folder containing mkcert root certificates and the mkcert key and
+   certificate.
 1. Install the certificates on your dev machine:
-    - **Firefox:** `Settings -> Security -> Show Certificates`  
-      In the tab `certificate authorities` click `import`, navigate to the
-      aforementioned `/certs` folder and select `rootCA.pem` to import.
-    - **Chrome:** In `Settings -> Manage certificates -> Authorities` import the
-      `rootCA.pem` from the `/certs` folder.
+   - **Firefox:** `Settings -> Security -> Show Certificates`  
+     In the tab `certificate authorities` click `import`, navigate to the
+     aforementioned `/certs` folder and select `rootCA.pem` to import.
+   - **Chrome:** In `Settings -> Manage certificates -> Authorities` import the 
+   `rootCA.pem` from the `/certs` folder.  
 1. As root, edit your `hosts` file
-    - Linux: `/etc/hosts`
-    - Windows: `C:\Windows\system32\drivers\etc\hosts`  
-      to contain the line  
-      `127.0.0.1 docker.test`
-1. Copy over the file `.env.dist` to `.env` in the same folder and verify all
+   - Linux: `/etc/hosts`
+   - Windows: `C:\Windows\system32\drivers\etc\hosts`  
+   to contain the line  
+   `127.0.0.1 docker.test`
+1. Copy over the file `.env.dist` to `.env` in the same folder and verify all 
    values in `.env` to be to your requirements.  
    (Windows uses a different `SOCKET_PATH` -- all other variables should be
    fine.)
 1. Create the Docker network:  
-   The variable `NETWORK_NAME` in `.env` represents that network name all
+   The variable `NETWORK_NAME` in `.env` represents that network name all 
    containers in this stack have to register in.  
    Use `docker network create --attachable "{YOUR_NETWORK_NAME}"` once to create
    the network. Don't change it afterwards.
-    - You can now test if the network was created.  
-      `docker network ls` should print a list of all networks including `YOUR_NETWORK_NAME`
+   - You can now test if the network was created.  
+     `docker network ls` should print a list of all networks including `YOUR_NETWORK_NAME`
 1. Inside the repository run `docker-compose up`.  
    Docker will now download all necessary containers and run them.
 1. You can check if it all works with `docker ps -a`.  
@@ -80,7 +81,7 @@ ressources. So
 The main goal here is to add multiple projects, that are dockerized, to the same
 proxy network
 
-1. `DockerExec` expects a `docker-compose.y(a)ml` file that contains nginx and all
+1. `DockerExec` expects a `docker-compose.y(a)ml` file that contains nginx and all 
    other services you might need for your project (sans DB / BDA tool)  
    Configure nginx like this:
     ``` yaml
@@ -114,7 +115,7 @@ proxy network
 
 ## Docker-Proxy-Stack Update
 
-In the root directory of this repository
+In the root directory of this repository 
 
 1. run `git pull`
 1. read new release notes
@@ -204,15 +205,15 @@ for usual interactions with the Docker-Proxy-Stack, we provice the Bash script
 
 ### Limitations of DockerExec
 
-At this point some variables and configuration are hard coded and have to be
+At this point some variables and configuration are hard coded and have to be 
 set manually for a new project.  
 You also need Bash. `/bin/sh` will not suffice.
 
 1. Your projects Docker-Compose file has to have the name
    `docker-compose.proxy.y(a)ml`.
-    - Depending on your environment there can also be a
-      `docker-compose.prod.y(a)ml` or for a single Compose file
-      `docker-compose.y(a)ml`. These are not suited for local dev environments.
+   - Depending on your environment there can also be a
+     `docker-compose.prod.y(a)ml` or for a single Compose file
+     `docker-compose.y(a)ml`. These are not suited for local dev environments.
 1. You have to provide a `.env` file in your project root to set necessary
    variables. A best practice would be to have a version-controlled
    `.env.template` which you copy over to `.env` and customize on deployment.
@@ -291,10 +292,10 @@ POSTGRES_PASSWORD=root
 Although the Docker-Proxy-Stack is fully functional, there is a lot of potential for further development.
 
 - documentation
-    - add the correct container registry in the `.env` code snippet
-    - try all steps on a fresh system and verify the instructions
-    - add screenshots
+  - add the correct container registry in the `.env` code snippet
+  - try all steps on a fresh system and verify the instructions
+  - add screenshots
 - DockerExec
-    - add common tasks
-    - rewrite in Python
-    - make functionality more discoverable
+  - add common tasks
+  - rewrite in Python
+  - make functionality more discoverable
