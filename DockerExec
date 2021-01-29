@@ -470,41 +470,43 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # start the docker proxy db with bash
     elif [[ "db" == "$ACTION" ]]; then
-        RUNNING_APP=`docker ps -aq -f name="proxy-db" -f status="running"`
+        DB_NAME=`grep "^DB_NAME=" "$ENV_FILE" | sed -e 's/^DB_NAME=//' | sed -e 's/[[:space:]]*$//'`
+        RUNNING_APP=`docker ps -aq -f name="$DB_NAME" -f status="running"`
 
         if [[ ! -z "$RUNNING_APP" ]]; then
             USE_DATABASE="${PARAMETERS[0]}"
             USE_DB_FILE="${PARAMETERS[1]}"
 
             if [[ ! -z "$USE_DATABASE" && ! -z "$USE_DB_FILE" ]]; then
-                docker exec -it proxy-db bash -c "mysql -proot -e 'CREATE DATABASE IF NOT EXISTS $USE_DATABASE' && mysql -proot '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
+                docker exec -it "$DB_NAME" bash -c "mysql -proot -e 'CREATE DATABASE IF NOT EXISTS $USE_DATABASE' && mysql -proot '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
                 print_info "Done"
             else
-                docker exec -it proxy-db bash -c "cd /var/data && bash"
+                docker exec -it "$DB_NAME" bash -c "cd /var/data && bash"
             fi
 
         else
-            print_error "The proxy-db container is not up and running..." 1
+            print_error "The $DB_NAME container is not up and running..." 1
             exit 1
         fi
 
     # start the docker proxy pg with bash
     elif [[ "pg" == "$ACTION" ]]; then
-        RUNNING_APP=`docker ps -aq -f name="proxy-pg" -f status="running"`
+        PG_NAME=`grep "^PG_NAME=" "$ENV_FILE" | sed -e 's/^PG_NAME=//' | sed -e 's/[[:space:]]*$//'`
+        RUNNING_APP=`docker ps -aq -f name="$PG_NAME" -f status="running"`
 
         if [[ ! -z "$RUNNING_APP" ]]; then
             USE_DATABASE="${PARAMETERS[0]}"
             USE_DB_FILE="${PARAMETERS[1]}"
 
             if [[ ! -z "$USE_DATABASE" && ! -z "$USE_DB_FILE" ]]; then
-                docker exec -it proxy-pg bash -c "echo \"SELECT 'CREATE DATABASE $USE_DATABASE' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$USE_DATABASE')\gexec\" | psql && psql -d '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
+                docker exec -it "$PG_NAME" bash -c "echo \"SELECT 'CREATE DATABASE $USE_DATABASE' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$USE_DATABASE')\gexec\" | psql && psql -d '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
                 print_info "Done"
             else
-                docker exec -it proxy-pg bash -c "cd /var/data && bash"
+                docker exec -it "$PG_NAME" bash -c "cd /var/data && bash"
             fi
 
         else
-            print_error "The proxy-pg container is not up and running..." 1
+            print_error "The $PG_NAME container is not up and running..." 1
             exit 1
         fi
 
