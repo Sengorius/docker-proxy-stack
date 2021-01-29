@@ -52,15 +52,15 @@ if [[ -z "$PROXY_PATH" ]]; then
     echo
     echo -e "${COLOR_HEADLINE}Installation:${COLOR_WHITE}"
     echo
-    echo -e "  Zuerst den NGINX-Proxy per ${COLOR_ORANGE}git clone${COLOR_WHITE} auf diese Maschine kopieren."
-    echo -e "  Dann in deine .bashrc Datei folgende Zeilen einfügen:"
+    echo -e "  Make sure to clone the repository via ${COLOR_ORANGE}git clone${COLOR_WHITE} to this machine."
+    echo -e "  Then open the ~/.bashrc file in an editor and add following lines:"
     echo
-    echo -e "${COLOR_ORANGE}    # enable DockerExec${COLOR_WHITE}"
-    echo -e "${COLOR_ORANGE}    PROXY_PATH='/pfad/zum/nginx-proxy/verzeichnis'${COLOR_WHITE} # hier bitte ergänzen"
-    echo -e "${COLOR_ORANGE}    alias DockerExec='PROXY_PATH=\$PROXY_PATH $SCRIPT_PATH'${COLOR_WHITE}"
+    echo -e "${COLOR_ORANGE}    # enable DockerExec (docker-proxy-stack)${COLOR_WHITE}"
+    echo -e "${COLOR_ORANGE}    PROXY_PATH='/path/to/docker-proxy-stack'${COLOR_WHITE} # change this"
+    echo -e "${COLOR_ORANGE}    alias DockerExec='PROXY_PATH=\$PROXY_PATH $SCRIPT_PATH'${COLOR_WHITE} # do not change this"
     echo
-    echo -e "  Die .bashrc findest du unter Windows bei ${COLOR_ORANGE}C:\Users\%username%\.bashrc${COLOR_WHITE}, sofern Git for Windows installiert ist."
-    echo -e "  Unter Linux liegt diese bei ${COLOR_ORANGE}/home/\$USER/.bashrc${COLOR_WHITE}."
+    echo -e "  On Windows, the .bashrc is probably located at ${COLOR_ORANGE}C:\Users\%username%\.bashrc${COLOR_WHITE},"
+    echo -e "  if  'Git for Windows' or some WSL is installed."
     echo
 
     exit 0
@@ -95,34 +95,34 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     BN=`basename $0`
 
     echo
-    echo -e "${COLOR_HEADLINE}Verwendung:${COLOR_WHITE}"
-    echo -e "  $BN ${COLOR_GREEN}[Umgebung] ${COLOR_BLUE}[Option] ${COLOR_RED}[\$Parameter(s)] ${COLOR_WHITE}"
+    echo -e "${COLOR_WHITE}Usage:"
+    echo -e "  $BN ${COLOR_GREEN}[Environment] ${COLOR_BLUE}[Option] ${COLOR_RED}[\$Parameter(s)] ${COLOR_WHITE}"
     echo
-    echo -e "${COLOR_HEADLINE}Umgebungen mit ihren Optionen:${COLOR_WHITE}"
-    echo -e " ${COLOR_GREEN}dev${COLOR_WHITE}: Steuerung der docker-compose.yml bzw. docker-compose.dev.yml"
-    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - führt ein erweitertes docker-compose up aus"
-    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - beendet das Docker-Compose Setup"
+    echo -e "${COLOR_WHITE}Environments and their options:"
+    echo -e " ${COLOR_GREEN}dev${COLOR_WHITE}: Controls for docker-compose.yml and docker-compose.dev.yml"
+    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
+    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
     echo
-    echo -e " ${COLOR_GREEN}prod${COLOR_WHITE}: Steuerung der docker-compose.prod.yml"
-    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - führt ein erweitertes docker-compose up aus"
-    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - beendet das Docker-Compose Setup"
+    echo -e " ${COLOR_GREEN}prod${COLOR_WHITE}: Controls for docker-compose.prod.yml"
+    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
+    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
     echo
-    echo -e " ${COLOR_GREEN}proxy${COLOR_WHITE}: Steuerung der docker-compose.proxy.yml"
-    echo -e "    ${COLOR_BLUE}init${COLOR_WHITE}               - startet den NGINX Proxy Container und erstellt das Netzwerk"
-    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - fährt den NGINX Proxy herunter"
-    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - startet das hiesige docker-compose mit der Proxy Konfiguration"
-    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - beendet das hiesige docker-compose Setup"
-    echo -e "    ${COLOR_BLUE}db ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - startet eine Bash für die MySQL Proxy-Datenbank (dev) [oder importiert direkt eine .sql Datei in \$db]"
-    echo -e "    ${COLOR_BLUE}pg ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - startet eine Bash für die Postgres Proxy-Datenbank (dev) [oder importiert direkt eine .sql Datei in \$db]"
-    echo -e "    ${COLOR_BLUE}generate${COLOR_WHITE} ${COLOR_RED}[\$dp]${COLOR_WHITE}     - erstellt eine docker-compose.proxy.yaml + .env Datei mit Link auf [\$dp].docker.test"
+    echo -e " ${COLOR_GREEN}proxy${COLOR_WHITE}: Controls docker-compose.proxy.yml and the proxy stack"
+    echo -e "    ${COLOR_BLUE}init${COLOR_WHITE}               - starts the docker NGINX proxy stack and creates a netzwork, if necessary"
+    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - shuts the docker NGINX proxy stack down"
+    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
+    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
+    echo -e "    ${COLOR_BLUE}db ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - running a bash on the MySQL proxy database [or will import an .sql file with specified \$dbname and \$filename]"
+    echo -e "    ${COLOR_BLUE}pg ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - running a bash on the Postgres proxy database [or will import an .sql file with specified \$dbname and \$filename]"
+    echo -e "    ${COLOR_BLUE}generate${COLOR_WHITE} ${COLOR_RED}[\$dp]${COLOR_WHITE}     - creates a docker-compose.proxy.yaml + .env file with linked [\$dp].docker.test"
     echo
-    echo -e " ${COLOR_GREEN}do${COLOR_WHITE}: Zusätzliche Tools"
-    echo -e "    ${COLOR_BLUE}ps${COLOR_WHITE}                 - listet alle Container auf"
-    echo -e "    ${COLOR_BLUE}remove${COLOR_WHITE}             - entfernt alle gestoppten Container"
-    echo -e "    ${COLOR_BLUE}cleanup${COLOR_WHITE}            - entfernt alle images, die nicht mehr gebraucht werden"
-    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - stoppt und entfernt dann alle aktuell laufenden Container"
-    echo -e "    ${COLOR_BLUE}watch-running ${COLOR_RED}\$cn${COLOR_WHITE}  - testet, ob ein Container mit Namen '\$cn' läuft und gibt bei Erfolg 'true' zurück"
-    echo -e "    ${COLOR_BLUE}status ${COLOR_RED}[\$fn]${COLOR_WHITE}       - erstellt eine Text-Datei [\$fn] mit Informationen zum aktuellen Docker Status"
+    echo -e " ${COLOR_GREEN}do${COLOR_WHITE}: Other tools"
+    echo -e "    ${COLOR_BLUE}ps${COLOR_WHITE}                 - lists all containers like 'docker ps -a'"
+    echo -e "    ${COLOR_BLUE}remove${COLOR_WHITE}             - does a 'docker rm' to all containers that have stopped running"
+    echo -e "    ${COLOR_BLUE}cleanup${COLOR_WHITE}            - deletes all docker images, that have a <none> as tag name or image id"
+    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - stops and removes all current containers, like 'docker stop && docker rm'"
+    echo -e "    ${COLOR_BLUE}watch-running ${COLOR_RED}\$cn${COLOR_WHITE}  - tests, whether a container with name '\$cn' is running and returns 'TRUE' or 'FALSE' as a string"
+    echo -e "    ${COLOR_BLUE}status ${COLOR_RED}[\$fn]${COLOR_WHITE}       - creates a text file [\$fn] in current location that contains a list of images and runninge containers on this machine"
     echo
 
     exit 0
@@ -130,9 +130,12 @@ fi
 
 # test, if proxy directory is existing
 if [[ ! -z "$PROXY_PATH" && ! -d "$PROXY_PATH" ]]; then
-    print_error "Der Pfad zum Proxy scheint nicht zu exisieren..." 1
+    print_error "The path to the docker-proxy-stack directory seems no to be configured correctly..." 1
     exit 1
 fi
+
+# remove the trailing slash
+PROXY_PATH=${PROXY_PATH%/}
 
 # set some more defaults
 ENV_FILE=".env"
@@ -142,7 +145,7 @@ STATUS_FILE_NAME="docker_current.txt"
 TEMP_HOSTS_FILE=".current-hosts"
 TEMP_HOSTS_PATH="$PROXY_PATH/$TEMP_HOSTS_FILE"
 
-# offer a function to test a directory on havin valid .env and (.yml or .yaml)
+# offer a function to test a directory on having valid .env and (.yml or .yaml)
 function test_files() {
     local ENV_FILE=$1
     local COMPOSE=$2
@@ -150,13 +153,13 @@ function test_files() {
     local COMPOSE_V2="$COMPOSE.yaml"
 
     if [[ ! ( -e "$ENV_FILE" || -f "$ENV_FILE" ) ]]; then
-        print_error "Die $ENV_FILE Datei wurde nicht gefunden! Bist du im Projekt-Verzeichnis?" 1
+        print_error "The $ENV_FILE file was not found! Are you located in your project directory?" 1
         exit 1
     fi
 
     if [[ ! ( -e "$COMPOSE_V1" || -f "$COMPOSE_V1" ) ]]; then
         if [[ ! ( -e "$COMPOSE_V2" || -f "$COMPOSE_V2" ) ]]; then
-            print_error "Die $COMPOSE_V1 bzw. $COMPOSE_V2 Datei wurde nicht gefunden! Bist du im Projekt-Verzeichnis?" 1
+            print_error "No $COMPOSE_V1 or $COMPOSE_V2 file was found! Are you located in your project directory?" 1
             exit 1
         else
             echo $COMPOSE_V2
@@ -175,13 +178,13 @@ function test_files_proxy() {
     local COMPOSE_V2="$COMPOSE.yaml"
 
     if [[ ! ( -e "$ENV_FILE" || -f "$ENV_FILE" ) ]]; then
-        print_error "Die $ENV_FILE Datei wurde nicht gefunden! Der Proxy benötigt noch entsprechende Konfiguration!" 1
+        print_error "The $ENV_FILE file was not found! The proxy-stack is not configured, yet!" 1
         exit 1
     fi
 
     if [[ ! ( -e "$COMPOSE_V1" || -f "$COMPOSE_V1" ) ]]; then
         if [[ ! ( -e "$COMPOSE_V2" || -f "$COMPOSE_V2" ) ]]; then
-            print_error "Die $COMPOSE_V1 bzw. $COMPOSE_V2 Datei wurde nicht gefunden! Da stimmt irgendwas nicht..." 1
+            print_error "No $COMPOSE_V1 or $COMPOSE_V2 file was found! Something is wrong here..." 1
             exit 1
         else
             echo $COMPOSE_V2
@@ -344,7 +347,7 @@ function publish_host_files() {
         COUNTER=$((COUNTER+1))
     done <<< "$TARGET_CONTAINERS"
 
-    print_info "Die /etc/hosts Datei von $COUNTER Proxy-Containern wurde aktualisiert!"
+    print_info "The /etc/hosts file of $COUNTER proxy containers was updated successfully!"
 }
 
 # watch the environment
@@ -368,7 +371,7 @@ if [[ "dev" == "$ENVIRONMENT" ]]; then
         exit 0
 
     else
-        print_error "Unbekannte Option '$ACTION'..." 1
+        print_error "Unknown option '$ACTION'..." 1
         exit 1
     fi
 
@@ -393,7 +396,7 @@ elif [[ "prod" == "$ENVIRONMENT" ]]; then
         exit 0
 
     else
-        print_error "Unbekannte Option '$ACTION'..." 1
+        print_error "Unknown option '$ACTION'..." 1
         exit 1
     fi
 
@@ -418,7 +421,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         NETWORK_EXISTS=`docker network ls | grep "$NETWORK_NAME"`
         if [[ -z "$NETWORK_EXISTS" ]]; then
             docker network create --attachable "$NETWORK_NAME"
-            print_info "Netzwerk $NETWORK_NAME wurde angelegt!"
+            print_info "Network $NETWORK_NAME was created successfully!"
         fi
 
         # reset the temporary hosts
@@ -488,7 +491,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             fi
             exit 0
         else
-            print_error "Der Container proxy-db läuft im moment gar nicht..." 1
+            print_error "The proxy-db container is not up and running..." 1
             exit 1
         fi
 
@@ -508,7 +511,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             fi
             exit 0
         else
-            print_error "Der Container proxy-pg läuft im moment gar nicht..." 1
+            print_error "The proxy-pg container is not up and running..." 1
             exit 1
         fi
 
@@ -555,7 +558,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
                 echo
             } >> docker-compose.proxy.yaml
 
-            print_info "Eine docker-compose.proxy.yaml wurde erstellt."
+            print_info "A docker-compose.proxy.yaml was added."
         fi
 
         if [[ ! -f "$ENV_FILE" ]]; then
@@ -568,13 +571,13 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
                 echo
             } >> .env
 
-            print_info "Eine .env wurde erstellt."
+            print_info "A .env was added."
         fi
 
         exit 0
 
     else
-        print_error "Unbekannte Option '$ACTION'..." 1
+        print_error "Unknown option '$ACTION'..." 1
         exit 1
     fi
 
@@ -659,12 +662,12 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         exit 0
 
     else
-        print_error "Unbekannte Option '$ACTION'..." 1
+        print_error "Unknown option '$ACTION'..." 1
         exit 1
     fi
 
 else
-    print_error "Es gibt keine Umgebung mit dem Namen '$ENVIRONMENT'..." 1
+    print_error "There is no environment named '$ENVIRONMENT'..." 1
     exit 1
 fi
 
