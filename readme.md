@@ -6,16 +6,17 @@ supports
 1. SSL (`https://`) for all local projects.
 1. descriptive names instead of `localhost`.
 1. running multiple projects at the same time
-   - sharing database containers (MySQL & PostgreSQL)
-   - sharing certificates
-   - sharing a mailcatcher
-   - sharing a reverse proxy
-     (thus not blocking port 80/443)
+    - sharing database containers (MySQL & PostgreSQL)
+    - sharing certificates
+    - sharing a mailcatcher
+    - sharing a reverse proxy
+      (thus not blocking port 80/443)
 1. easy initial setup
 1. DB administration with PhpMyAdmin and Adminer
 1. catching E-Mails via SMTP with mailcatcher
 
 ### So why do we do all this?
+
 
 If you are running multiple web applications on one machine at the same time 
 you are running into a couple of issues.  
