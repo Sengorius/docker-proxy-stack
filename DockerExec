@@ -443,7 +443,9 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         docker-compose rm -f
 
         # remove the temporary hosts
-        rm "$TEMP_HOSTS_PATH"
+        if [[ -f "$TEMP_HOSTS_PATH" ]]; then
+            rm "$TEMP_HOSTS_PATH"
+        fi
         exit 0
 
     # start the docker-compose
@@ -585,7 +587,10 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
     if [[ "finish" == "$ACTION" ]]; then
         docker stop $(docker ps -aq)
         docker rm -f $(docker ps -aq)
-        rm "$TEMP_HOSTS_PATH"
+
+        if [[ -f "$TEMP_HOSTS_PATH" ]]; then
+            rm "$TEMP_HOSTS_PATH"
+        fi
         exit 0
 
     # remove all stopped containers
