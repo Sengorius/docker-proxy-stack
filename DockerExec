@@ -361,13 +361,11 @@ if [[ "dev" == "$ENVIRONMENT" ]]; then
     # start the docker-compose
     if [[ "start" == "$ACTION" ]]; then
         compose_run "$COMPOSE" "$ENV_FILE"
-        exit 0
 
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
         docker-compose stop
         docker-compose rm -f
-        exit 0
 
     else
         print_error "Unknown option '$ACTION'..." 1
@@ -385,14 +383,12 @@ elif [[ "prod" == "$ENVIRONMENT" ]]; then
     # start the docker-compose
     if [[ "start" == "$ACTION" ]]; then
         compose_run "$COMPOSE" "$ENV_FILE"
-        exit 0
 
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
         update_host_files "$ENV_FILE" "remove"
         docker-compose -f "$COMPOSE" stop
         docker-compose -f "$COMPOSE" rm -f
-        exit 0
 
     else
         print_error "Unknown option '$ACTION'..." 1
@@ -432,7 +428,6 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         # print out all found hosts and start compose
         print_hosts "$COMPOSE"
         docker-compose up
-        exit 0
 
     # stop and remove the proxy
     elif [[ "finish" == "$ACTION" ]]; then
@@ -446,7 +441,6 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         if [[ -f "$TEMP_HOSTS_PATH" ]]; then
             rm "$TEMP_HOSTS_PATH"
         fi
-        exit 0
 
     # start the docker-compose
     elif [[ "start" == "$ACTION" ]]; then
@@ -460,7 +454,6 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         # print out all found hosts and start
         print_hosts "$COMPOSE"
         compose_run "$COMPOSE" "$ENV_FILE"
-        exit 0
 
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
@@ -474,7 +467,6 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         update_host_files "$ENV_FILE" "remove"
         docker-compose -f "$COMPOSE" stop
         docker-compose -f "$COMPOSE" rm -f
-        exit 0
 
     # start the docker proxy db with bash
     elif [[ "db" == "$ACTION" ]]; then
@@ -490,7 +482,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             else
                 docker exec -it proxy-db bash -c "cd /var/data && bash"
             fi
-            exit 0
+
         else
             print_error "The proxy-db container is not up and running..." 1
             exit 1
@@ -510,7 +502,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             else
                 docker exec -it proxy-pg bash -c "cd /var/data && bash"
             fi
-            exit 0
+
         else
             print_error "The proxy-pg container is not up and running..." 1
             exit 1
@@ -575,8 +567,6 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             print_info "A .env was added."
         fi
 
-        exit 0
-
     else
         print_error "Unknown option '$ACTION'..." 1
         exit 1
@@ -591,17 +581,14 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         if [[ -f "$TEMP_HOSTS_PATH" ]]; then
             rm "$TEMP_HOSTS_PATH"
         fi
-        exit 0
 
     # remove all stopped containers
     elif [[ "remove" == "$ACTION" ]]; then
         docker rm -f $(docker ps -aq -f "status=exited")
-        exit 0
 
     # remove all images that are no more in use
     elif [[ "cleanup" == "$ACTION" ]]; then
         docker rmi -f $(docker images | grep "<none>" | awk "{print \$3}")
-        exit 0
 
     # test, if a container is running
     elif [[ "watch-running" == "$ACTION" ]]; then
@@ -619,8 +606,6 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         else
             echo "FALSE"
         fi
-
-        exit 0
 
     # print the current state of Docker into a file
     elif [[ "status" == "$ACTION" ]]; then
@@ -658,12 +643,9 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
                 ;;
         esac
 
-        exit 0
-
     # shortcut to list all docker containers
     elif [[ "ps" == "$ACTION" ]]; then
         docker ps -a --format "table {{.Image}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
-        exit 0
 
     else
         print_error "Unknown option '$ACTION'..." 1
