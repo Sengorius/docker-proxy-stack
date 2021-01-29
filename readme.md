@@ -291,6 +291,7 @@ POSTGRES_PASSWORD=root
 Although the Docker-Proxy-Stack is fully functional, there is a lot of potential for further development.
 
 - documentation
+  - add the correct container registry in the `.env` code snippet
   - try all steps on a fresh system and verify the instructions
   - add screenshots
 - DockerExec
