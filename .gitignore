@@ -1,0 +1,6 @@
+.env
+.current-hosts
+tags
+/conf/default.conf
+/dhparam
+/data

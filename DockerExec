@@ -1,0 +1,671 @@
+#!/bin/bash
+
+###
+### Colors
+###
+
+COLOR_HEADLINE="\033[1;30m"
+COLOR_BLUE="\033[0;36m"
+COLOR_GREEN="\033[0;32m"
+COLOR_ORANGE="\033[0;33m"
+COLOR_RED="\033[0;31m"
+COLOR_WHITE='\033[0m'
+
+# add colorize functions
+function print_error() {
+    local MESSAGE=$1
+    local NEWLINE=$2
+
+    if [[ -z "$NEWLINE" ]]; then
+        NEWLINE=0
+    fi
+
+    echo -e "${COLOR_RED}$MESSAGE${COLOR_WHITE}"
+
+    if [[ "1" == "$NEWLINE" ]]; then
+        echo
+    fi
+}
+
+function print_info() {
+    local MESSAGE=$1
+    local NEWLINE=$2
+
+    if [[ -z "$NEWLINE" ]]; then
+        NEWLINE=0
+    fi
+
+    echo -e "${COLOR_BLUE}$MESSAGE${COLOR_WHITE}"
+
+    if [[ "1" == "$NEWLINE" ]]; then
+        echo
+    fi
+}
+
+
+###
+### How to install this script
+###
+if [[ -z "$PROXY_PATH" ]]; then
+    SCRIPT_PATH=`realpath "$0"`
+
+    echo
+    echo -e "${COLOR_HEADLINE}Installation:${COLOR_WHITE}"
+    echo
+    echo -e "  Zuerst den NGINX-Proxy per ${COLOR_ORANGE}git clone${COLOR_WHITE} auf diese Maschine kopieren."
+    echo -e "  Dann in deine .bashrc Datei folgende Zeilen einfügen:"
+    echo
+    echo -e "${COLOR_ORANGE}    # enable DockerExec${COLOR_WHITE}"
+    echo -e "${COLOR_ORANGE}    PROXY_PATH='/pfad/zum/nginx-proxy/verzeichnis'${COLOR_WHITE} # hier bitte ergänzen"
+    echo -e "${COLOR_ORANGE}    alias DockerExec='PROXY_PATH=\$PROXY_PATH $SCRIPT_PATH'${COLOR_WHITE}"
+    echo
+    echo -e "  Die .bashrc findest du unter Windows bei ${COLOR_ORANGE}C:\Users\%username%\.bashrc${COLOR_WHITE}, sofern Git for Windows installiert ist."
+    echo -e "  Unter Linux liegt diese bei ${COLOR_ORANGE}/home/\$USER/.bashrc${COLOR_WHITE}."
+    echo
+
+    exit 0
+fi
+
+
+###
+### start of program
+###
+
+# get the arguments and set default parameter, if none was given
+ENVIRONMENT=$1; shift
+
+case "$ENVIRONMENT" in
+    dev|prod|proxy|do)
+        ACTION=$1; shift
+        ;;
+    *)
+        ACTION="$ENVIRONMENT"
+        ENVIRONMENT="do"
+        ;;
+esac
+
+PARAMETERS=("$@")
+
+if [[ -z "$ACTION" ]]; then
+    ACTION="ps"
+fi
+
+# return the help statement, if asked for
+if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
+    BN=`basename $0`
+
+    echo
+    echo -e "${COLOR_HEADLINE}Verwendung:${COLOR_WHITE}"
+    echo -e "  $BN ${COLOR_GREEN}[Umgebung] ${COLOR_BLUE}[Option] ${COLOR_RED}[\$Parameter(s)] ${COLOR_WHITE}"
+    echo
+    echo -e "${COLOR_HEADLINE}Umgebungen mit ihren Optionen:${COLOR_WHITE}"
+    echo -e " ${COLOR_GREEN}dev${COLOR_WHITE}: Steuerung der docker-compose.yml bzw. docker-compose.dev.yml"
+    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - führt ein erweitertes docker-compose up aus"
+    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - beendet das Docker-Compose Setup"
+    echo
+    echo -e " ${COLOR_GREEN}prod${COLOR_WHITE}: Steuerung der docker-compose.prod.yml"
+    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - führt ein erweitertes docker-compose up aus"
+    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - beendet das Docker-Compose Setup"
+    echo
+    echo -e " ${COLOR_GREEN}proxy${COLOR_WHITE}: Steuerung der docker-compose.proxy.yml"
+    echo -e "    ${COLOR_BLUE}init${COLOR_WHITE}               - startet den NGINX Proxy Container und erstellt das Netzwerk"
+    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - fährt den NGINX Proxy herunter"
+    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - startet das hiesige docker-compose mit der Proxy Konfiguration"
+    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - beendet das hiesige docker-compose Setup"
+    echo -e "    ${COLOR_BLUE}db ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - startet eine Bash für die MySQL Proxy-Datenbank (dev) [oder importiert direkt eine .sql Datei in \$db]"
+    echo -e "    ${COLOR_BLUE}pg ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - startet eine Bash für die Postgres Proxy-Datenbank (dev) [oder importiert direkt eine .sql Datei in \$db]"
+    echo -e "    ${COLOR_BLUE}generate${COLOR_WHITE} ${COLOR_RED}[\$dp]${COLOR_WHITE}     - erstellt eine docker-compose.proxy.yaml + .env Datei mit Link auf [\$dp].docker.test"
+    echo
+    echo -e " ${COLOR_GREEN}do${COLOR_WHITE}: Zusätzliche Tools"
+    echo -e "    ${COLOR_BLUE}ps${COLOR_WHITE}                 - listet alle Container auf"
+    echo -e "    ${COLOR_BLUE}remove${COLOR_WHITE}             - entfernt alle gestoppten Container"
+    echo -e "    ${COLOR_BLUE}cleanup${COLOR_WHITE}            - entfernt alle images, die nicht mehr gebraucht werden"
+    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - stoppt und entfernt dann alle aktuell laufenden Container"
+    echo -e "    ${COLOR_BLUE}watch-running ${COLOR_RED}\$cn${COLOR_WHITE}  - testet, ob ein Container mit Namen '\$cn' läuft und gibt bei Erfolg 'true' zurück"
+    echo -e "    ${COLOR_BLUE}status ${COLOR_RED}[\$fn]${COLOR_WHITE}       - erstellt eine Text-Datei [\$fn] mit Informationen zum aktuellen Docker Status"
+    echo
+
+    exit 0
+fi
+
+# test, if proxy directory is existing
+if [[ ! -z "$PROXY_PATH" && ! -d "$PROXY_PATH" ]]; then
+    print_error "Der Pfad zum Proxy scheint nicht zu exisieren..." 1
+    exit 1
+fi
+
+# set some more defaults
+ENV_FILE=".env"
+CURRENT_DIR=`pwd`
+LINUX_HOSTS=/etc/hosts
+STATUS_FILE_NAME="docker_current.txt"
+TEMP_HOSTS_FILE=".current-hosts"
+TEMP_HOSTS_PATH="$PROXY_PATH/$TEMP_HOSTS_FILE"
+
+# offer a function to test a directory on havin valid .env and (.yml or .yaml)
+function test_files() {
+    local ENV_FILE=$1
+    local COMPOSE=$2
+    local COMPOSE_V1="$COMPOSE.yml"
+    local COMPOSE_V2="$COMPOSE.yaml"
+
+    if [[ ! ( -e "$ENV_FILE" || -f "$ENV_FILE" ) ]]; then
+        print_error "Die $ENV_FILE Datei wurde nicht gefunden! Bist du im Projekt-Verzeichnis?" 1
+        exit 1
+    fi
+
+    if [[ ! ( -e "$COMPOSE_V1" || -f "$COMPOSE_V1" ) ]]; then
+        if [[ ! ( -e "$COMPOSE_V2" || -f "$COMPOSE_V2" ) ]]; then
+            print_error "Die $COMPOSE_V1 bzw. $COMPOSE_V2 Datei wurde nicht gefunden! Bist du im Projekt-Verzeichnis?" 1
+            exit 1
+        else
+            echo $COMPOSE_V2
+        fi
+    else
+        echo $COMPOSE_V1
+    fi
+
+    exit 0
+}
+
+function test_files_proxy() {
+    local ENV_FILE=$1
+    local COMPOSE=$2
+    local COMPOSE_V1="$COMPOSE.yml"
+    local COMPOSE_V2="$COMPOSE.yaml"
+
+    if [[ ! ( -e "$ENV_FILE" || -f "$ENV_FILE" ) ]]; then
+        print_error "Die $ENV_FILE Datei wurde nicht gefunden! Der Proxy benötigt noch entsprechende Konfiguration!" 1
+        exit 1
+    fi
+
+    if [[ ! ( -e "$COMPOSE_V1" || -f "$COMPOSE_V1" ) ]]; then
+        if [[ ! ( -e "$COMPOSE_V2" || -f "$COMPOSE_V2" ) ]]; then
+            print_error "Die $COMPOSE_V1 bzw. $COMPOSE_V2 Datei wurde nicht gefunden! Da stimmt irgendwas nicht..." 1
+            exit 1
+        else
+            echo $COMPOSE_V2
+        fi
+    else
+        echo $COMPOSE_V1
+    fi
+
+    exit 0
+}
+
+# offer a function to print found hosts as a list
+# and also include into the hosts file, if not done yet
+function print_hosts() {
+    local COMPOSE=$1
+    local HOSTS=`grep "VIRTUAL_HOST:" "$COMPOSE" | sed -e 's/VIRTUAL_HOST://' | sed -e 's/[[:space:]]*$//' | sed -e 's/^[[:space:]]*//' | sed 's/, /,/' | sed 's/,/\n/'`
+
+    # sudo must be given
+    sudo true
+
+    print_info "Folgende Hosts werden gestartet:"
+    echo "$HOSTS" | while read -r line; do
+        if [[ ! -z "$line" ]]; then
+            # append host to hosts file, if not yet included
+            HOSTS_HAS_FILE=`grep "$line" "$LINUX_HOSTS"`
+            if [[ -f "$LINUX_HOSTS" && -z "$HOSTS_HAS_FILE" ]]; then
+                local STUB=`echo "127.0.0.1    $line" | sudo tee -a "$LINUX_HOSTS"`
+            fi
+
+            echo "  https://$line"
+        fi
+    done
+}
+
+# offer a function that tries to find the current -app container name
+function get_container_names() {
+    local ENV_FILE=$1
+    local APP_PREFIX=`grep "^CON_PREFIX=" "$ENV_FILE" | sed -e 's/^CON_PREFIX=//' | sed -e 's/[[:space:]]*$//'`
+    local APP_NAME=`grep "^CON_NAME=" "$ENV_FILE" | sed -e 's/^CON_NAME=//' | sed -e 's/[[:space:]]*$//'`
+
+    if [[ ! -z "$APP_PREFIX" ]]; then
+        local RUNNING_APPS=`docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)(app|php)$" -f status="running"`
+        echo "$RUNNING_APPS"
+    elif [[ ! -z "$APP_NAME" ]]; then
+        echo "$APP_NAME"
+    else
+        echo ""
+    fi
+
+    exit 0
+}
+
+# offer a function that tries to find the current -web container name
+function get_nginx_names() {
+    local ENV_FILE=$1
+    local APP_PREFIX=`grep "^CON_PREFIX=" "$ENV_FILE" | sed -e 's/^CON_PREFIX=//' | sed -e 's/[[:space:]]*$//'`
+    local APP_NAME=`grep "^CON_NAME=" "$ENV_FILE" | sed -e 's/^CON_NAME=//' | sed -e 's/[[:space:]]*$//'`
+
+    if [[ ! -z "$APP_PREFIX" ]]; then
+        local RUNNING_APPS=`docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)web$" -f status="running"`
+        echo "$RUNNING_APPS"
+    elif [[ ! -z "$APP_NAME" ]]; then
+        echo "$APP_NAME"
+    else
+        echo ""
+    fi
+
+    exit 0
+}
+
+# offer a function to start compose and enter bash
+function compose_run() {
+    local COMPOSE=$1
+    local ENV_FILE=$2
+
+    docker-compose -f "$COMPOSE" up -d
+
+    if [[ ! -z "$ENV_FILE" ]]; then
+        update_host_files "$ENV_FILE"
+        local CON_NAMES=(`get_container_names "$ENV_FILE"`)
+
+        if [[ 0 != ${#CON_NAMES[@]} ]]; then
+            # retry sh, if bash is not found
+            docker exec -it "${CON_NAMES[0]}" bash || \
+            docker exec -it "${CON_NAMES[0]}" sh
+        fi
+    fi
+}
+
+# update any running -web and -app containers /etc/hosts file with the new started IP of the current -web container
+function update_host_files() {
+    local ENV_FILE=$1
+    local HOST_ACTION=$2
+    local WEB_CON_NAMES=(`get_nginx_names "$ENV_FILE"`)
+    local APP_CON_NAMES=(`get_container_names "$ENV_FILE"`)
+
+    if [[ -z "$HOST_ACTION" ]]; then
+        HOST_ACTION="append"
+    fi
+
+    if [[ 0 != ${#WEB_CON_NAMES[@]} && 0 != ${#APP_CON_NAMES[@]} ]]; then
+        SHALL_BE_PUBLISHED=
+
+        for WEB_CON in "${WEB_CON_NAMES[@]}"; do
+            WEB_CON_STATE=`docker ps -a --format "table {{.Status}}\t{{.ID}}\t{{.Names}}" | grep "$WEB_CON"`
+
+            if [[ $WEB_CON_STATE == *"Up "* ]]; then
+                local WEB_IP=`docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' $WEB_CON`
+                local WEB_HOST=`docker inspect --format '{{ .Config.Env }}' $WEB_CON | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//'`
+                local WEB_HASH=`docker inspect --format '{{ .Config.Hostname }}' $WEB_CON`
+                SHALL_BE_PUBLISHED=yes
+
+                # remove the line from temporary file, if existing
+                if [[ "remove" == "$HOST_ACTION" ]]; then
+                    sed -i "/$WEB_HOST/d" "$TEMP_HOSTS_PATH"
+                    sed -i "/$WEB_HASH/d" "$TEMP_HOSTS_PATH"
+
+                # add the IP => HOST to the temporary file
+                elif [[ ! -z "$WEB_IP" && ! -z "$WEB_HOST" && -z `grep "$WEB_HOST" "$TEMP_HOSTS_PATH"` ]]; then
+                    echo -e "$WEB_IP\t\t$WEB_HOST $WEB_HASH" >> "$TEMP_HOSTS_PATH"
+                fi
+            fi
+        done
+
+        for APP_CON in "${APP_CON_NAMES[@]}"; do
+            APP_CON_STATE=`docker ps -a --format "table {{.Status}}\t{{.ID}}\t{{.Names}}" | grep "$APP_CON"`
+
+            if [[ $APP_CON_STATE == *"Up "* ]]; then
+                local APP_IP=`docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' $APP_CON`
+                local APP_HASH=`docker inspect --format '{{ .Config.Hostname }}' $APP_CON`
+                SHALL_BE_PUBLISHED=yes
+
+                # remove the line from temporary file, if existing
+                if [[ "remove" == "$HOST_ACTION" ]]; then
+                    sed -i "/$APP_HASH/d" "$TEMP_HOSTS_PATH"
+
+                # add the IP => HOST to the temporary file
+                elif [[ ! -z "$APP_IP" && ! -z "$APP_HASH" && -z `grep "$APP_HASH" "$TEMP_HOSTS_PATH"` ]]; then
+                    echo -e "$APP_IP\t\t$APP_HASH" >> "$TEMP_HOSTS_PATH"
+                fi
+            fi
+        done
+
+        if [[ ! -z "$SHALL_BE_PUBLISHED" ]]; then
+            publish_host_files
+        fi
+    fi
+}
+
+# update the /etc/hosts file in any proxy related container with data from .current-hosts file
+function publish_host_files() {
+    local TARGET_CONTAINERS=`docker ps -a --format "{{ .Names }}" -f status="running" -f name="-web" -f name="_web" -f name="-php" -f name="_php" -f name="-app" -f name="_app"`
+    local COUNTER=0
+
+    while read -r CURRENT; do
+        CURRENT_CONTENT=`docker exec $CURRENT /bin/sh -c "cat /etc/hosts"`
+        CURRENT_CONTENT=`echo "$CURRENT_CONTENT" | sed '/^### DockerExec hosts file update ###/,$d'`
+        UPDATED_HOSTS="$CURRENT_CONTENT\n### DockerExec hosts file update ###\n"`cat $TEMP_HOSTS_PATH`
+        docker exec $CURRENT /bin/sh -c "echo '$UPDATED_HOSTS' > /etc/hosts"
+        COUNTER=$((COUNTER+1))
+    done <<< "$TARGET_CONTAINERS"
+
+    print_info "Die /etc/hosts Datei von $COUNTER Proxy-Containern wurde aktualisiert!"
+}
+
+# watch the environment
+if [[ "dev" == "$ENVIRONMENT" ]]; then
+    # test project files
+    COMPOSE=`test_files "$ENV_FILE" "docker-compose"`
+    if [[ "0" != "$?" ]]; then
+        echo $COMPOSE
+        exit 1
+    fi
+
+    # start the docker-compose
+    if [[ "start" == "$ACTION" ]]; then
+        compose_run "$COMPOSE" "$ENV_FILE"
+        exit 0
+
+    # stop and remove the containers
+    elif [[ "stop" == "$ACTION" ]]; then
+        docker-compose stop
+        docker-compose rm -f
+        exit 0
+
+    else
+        print_error "Unbekannte Option '$ACTION'..." 1
+        exit 1
+    fi
+
+elif [[ "prod" == "$ENVIRONMENT" ]]; then
+    # test project files
+    COMPOSE=`test_files "$ENV_FILE" "docker-compose.prod"`
+    if [[ "0" != "$?" ]]; then
+        echo $COMPOSE
+        exit 1
+    fi
+
+    # start the docker-compose
+    if [[ "start" == "$ACTION" ]]; then
+        compose_run "$COMPOSE" "$ENV_FILE"
+        exit 0
+
+    # stop and remove the containers
+    elif [[ "stop" == "$ACTION" ]]; then
+        update_host_files "$ENV_FILE" "remove"
+        docker-compose -f "$COMPOSE" stop
+        docker-compose -f "$COMPOSE" rm -f
+        exit 0
+
+    else
+        print_error "Unbekannte Option '$ACTION'..." 1
+        exit 1
+    fi
+
+elif [[ "proxy" == "$ENVIRONMENT" ]]; then
+    COMPOSE="docker-compose.proxy"
+
+    # start docker-compose in proxy path
+    if [[ "init" == "$ACTION" ]]; then
+        # go to proxy dir and check for project files
+        cd "$PROXY_PATH"
+        COMPOSE=`test_files_proxy "$ENV_FILE" "docker-compose"`
+        if [[ "0" != "$?" ]]; then
+            echo $COMPOSE
+            exit 1
+        fi
+
+        # fetch parameters from .env file
+        PROXY_NAME=`grep "^PROXY_NAME=" "$ENV_FILE" | sed -e 's/^PROXY_NAME=//' | sed -e 's/[[:space:]]*$//'`
+        NETWORK_NAME=`grep "^NETWORK_NAME=" "$ENV_FILE" | sed -e 's/^NETWORK_NAME=//' | sed -e 's/[[:space:]]*$//'`
+
+        # first, test if the network exists and create, if not
+        NETWORK_EXISTS=`docker network ls | grep "$NETWORK_NAME"`
+        if [[ -z "$NETWORK_EXISTS" ]]; then
+            docker network create --attachable "$NETWORK_NAME"
+            print_info "Netzwerk $NETWORK_NAME wurde angelegt!"
+        fi
+
+        # reset the temporary hosts
+        if [[ -f "$TEMP_HOSTS_PATH" ]]; then
+            rm "$TEMP_HOSTS_PATH"
+        fi
+        touch "$TEMP_HOSTS_PATH"
+
+        # print out all found hosts and start compose
+        print_hosts "$COMPOSE"
+        docker-compose up
+        exit 0
+
+    # stop and remove the proxy
+    elif [[ "finish" == "$ACTION" ]]; then
+        # go to proxy dir
+        cd "$PROXY_PATH"
+
+        docker-compose stop
+        docker-compose rm -f
+
+        # remove the temporary hosts
+        rm "$TEMP_HOSTS_PATH"
+        exit 0
+
+    # start the docker-compose
+    elif [[ "start" == "$ACTION" ]]; then
+        # test project files
+        COMPOSE=`test_files "$ENV_FILE" "$COMPOSE"`
+        if [[ "0" != "$?" ]]; then
+            echo $COMPOSE
+            exit 1
+        fi
+
+        # print out all found hosts and start
+        print_hosts "$COMPOSE"
+        compose_run "$COMPOSE" "$ENV_FILE"
+        exit 0
+
+    # stop and remove the containers
+    elif [[ "stop" == "$ACTION" ]]; then
+        # test project files
+        COMPOSE=`test_files "$ENV_FILE" "$COMPOSE"`
+        if [[ "0" != "$?" ]]; then
+            echo $COMPOSE
+            exit 1
+        fi
+
+        update_host_files "$ENV_FILE" "remove"
+        docker-compose -f "$COMPOSE" stop
+        docker-compose -f "$COMPOSE" rm -f
+        exit 0
+
+    # start the docker proxy db with bash
+    elif [[ "db" == "$ACTION" ]]; then
+        RUNNING_APP=`docker ps -aq -f name="proxy-db" -f status="running"`
+
+        if [[ ! -z "$RUNNING_APP" ]]; then
+            USE_DATABASE="${PARAMETERS[0]}"
+            USE_DB_FILE="${PARAMETERS[1]}"
+
+            if [[ ! -z "$USE_DATABASE" && ! -z "$USE_DB_FILE" ]]; then
+                docker exec -it proxy-db bash -c "mysql -proot -e 'CREATE DATABASE IF NOT EXISTS $USE_DATABASE' && mysql -proot '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
+                print_info "Done"
+            else
+                docker exec -it proxy-db bash -c "cd /var/data && bash"
+            fi
+            exit 0
+        else
+            print_error "Der Container proxy-db läuft im moment gar nicht..." 1
+            exit 1
+        fi
+
+    # start the docker proxy pg with bash
+    elif [[ "pg" == "$ACTION" ]]; then
+        RUNNING_APP=`docker ps -aq -f name="proxy-pg" -f status="running"`
+
+        if [[ ! -z "$RUNNING_APP" ]]; then
+            USE_DATABASE="${PARAMETERS[0]}"
+            USE_DB_FILE="${PARAMETERS[1]}"
+
+            if [[ ! -z "$USE_DATABASE" && ! -z "$USE_DB_FILE" ]]; then
+                docker exec -it proxy-pg bash -c "echo \"SELECT 'CREATE DATABASE $USE_DATABASE' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$USE_DATABASE')\gexec\" | psql && psql -d '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
+                print_info "Done"
+            else
+                docker exec -it proxy-pg bash -c "cd /var/data && bash"
+            fi
+            exit 0
+        else
+            print_error "Der Container proxy-pg läuft im moment gar nicht..." 1
+            exit 1
+        fi
+
+    # generate a docker-compose.proxy.yaml with a basic configuration
+    elif [[ "generate" == "$ACTION" ]]; then
+        DOMAIN_PREFIX="${PARAMETERS[0]}"
+
+        if [[ -z "$DOMAIN_PREFIX" ]]; then
+            DOMAIN_PREFIX="my-project"
+        fi
+
+        if [[ ! ( -f "$COMPOSE.yml" || -f "$COMPOSE.yaml" ) ]]; then
+            {
+                echo "version: '3.5'"
+                echo
+                echo "services:"
+                echo "    web:"
+                echo "       image: \${WEB_IMAGE}"
+                echo "       container_name: \${CON_PREFIX}-web"
+                echo "       env_file: .env"
+                echo "       volumes:"
+                echo "           - .:/var/www/html"
+                echo "       expose:"
+                echo "           - 80"
+                echo "           - 443"
+                echo "       environment:"
+                echo "           VIRTUAL_HOST: ${DOMAIN_PREFIX}.docker.test"
+                echo "           VIRTUAL_PORT: 443"
+                echo "           VIRTUAL_PROTO: https"
+                echo "       links:"
+                echo "           - php"
+                echo
+                echo "    php:"
+                echo "        image: \${PHP_IMAGE}"
+                echo "        container_name: \${CON_PREFIX}-app"
+                echo "        env_file: .env"
+                echo "        volumes:"
+                echo "            - .:/var/www/html"
+                echo
+                echo "networks:"
+                echo "    default:"
+                echo "        external:"
+                echo "            name: \${NETWORK}"
+                echo
+            } >> docker-compose.proxy.yaml
+
+            print_info "Eine docker-compose.proxy.yaml wurde erstellt."
+        fi
+
+        if [[ ! -f "$ENV_FILE" ]]; then
+            {
+                echo "# docker-compose configuration"
+                echo "CON_PREFIX=${DOMAIN_PREFIX}"
+                echo "PHP_IMAGE=php:fpm"
+                echo "WEB_IMAGE=nginx/nginx:latest"
+                echo "NETWORK=proxy-network"
+                echo
+            } >> .env
+
+            print_info "Eine .env wurde erstellt."
+        fi
+
+        exit 0
+
+    else
+        print_error "Unbekannte Option '$ACTION'..." 1
+        exit 1
+    fi
+
+elif [[ "do" == "$ENVIRONMENT" ]]; then
+    # stop, then remove all containers
+    if [[ "finish" == "$ACTION" ]]; then
+        docker stop $(docker ps -aq)
+        docker rm -f $(docker ps -aq)
+        rm "$TEMP_HOSTS_PATH"
+        exit 0
+
+    # remove all stopped containers
+    elif [[ "remove" == "$ACTION" ]]; then
+        docker rm -f $(docker ps -aq -f "status=exited")
+        exit 0
+
+    # remove all images that are no more in use
+    elif [[ "cleanup" == "$ACTION" ]]; then
+        docker rmi -f $(docker images | grep "<none>" | awk "{print \$3}")
+        exit 0
+
+    # test, if a container is running
+    elif [[ "watch-running" == "$ACTION" ]]; then
+        CONTAINER="${PARAMETERS[0]}"
+
+        if [[ -z "$CONTAINER" ]]; then
+            print_error "To test a container, please provide its name!" 1
+            exit 1
+        fi
+
+        STATE=`docker ps -a --format "table {{.Status}}\t{{.Names}}" | grep "$CONTAINER"`
+
+        if [[ $STATE == *"Up "* ]]; then
+            echo "TRUE"
+        else
+            echo "FALSE"
+        fi
+
+        exit 0
+
+    # print the current state of Docker into a file
+    elif [[ "status" == "$ACTION" ]]; then
+        # let's see, if a file name was given
+        REAL_STATUS_FILE="$STATUS_FILE_NAME"
+
+        if [[ 0 != "${#PARAMETERS[@]}" ]]; then
+            REAL_STATUS_FILE="${PARAMETERS[0]}"
+        fi
+
+        # create the full path and ask for confirmation
+        STATUS_PATH="$CURRENT_DIR/$REAL_STATUS_FILE"
+        read -r -p "A file $REAL_STATUS_FILE will be created (or override existing). Continue? [Y/n]" input
+
+        case $input in
+            [yY][eE][sS]|[yY])
+                # remove the existing file
+                if [[ -f "$STATUS_PATH" ]]; then
+                    rm -f "$STATUS_PATH"
+                fi
+
+                # print out status info into a static file
+                echo "### Currently running containers" >> "$STATUS_PATH"
+                echo "" >> "$STATUS_PATH"
+                docker ps -a --format "table {{.Image}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}" >> "$STATUS_PATH"
+                echo "" >> "$STATUS_PATH"
+                echo "" >> "$STATUS_PATH"
+                echo "### Currently existing images" >> "$STATUS_PATH"
+                echo "" >> "$STATUS_PATH"
+                docker images >> "$STATUS_PATH"
+                echo "" >> "$STATUS_PATH"
+                ;;
+            *)
+                print_error "Canceled..." 1
+                ;;
+        esac
+
+        exit 0
+
+    # shortcut to list all docker containers
+    elif [[ "ps" == "$ACTION" ]]; then
+        docker ps -a --format "table {{.Image}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
+        exit 0
+
+    else
+        print_error "Unbekannte Option '$ACTION'..." 1
+        exit 1
+    fi
+
+else
+    print_error "Es gibt keine Umgebung mit dem Namen '$ENVIRONMENT'..." 1
+    exit 1
+fi
+
+exit 0
