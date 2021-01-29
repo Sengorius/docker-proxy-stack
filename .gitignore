@@ -7,3 +7,9 @@ tags
 
 # nginx conf
 /conf/default.conf
+
+# generated and storage files
+/data/*
+!/data/.gitignore
+/dhparam/*
+!/dhparam/.gitignore
