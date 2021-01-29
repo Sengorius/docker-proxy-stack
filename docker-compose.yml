@@ -33,8 +33,7 @@ services:
             - ${DATA_PATH}:/var/data
 
     proxy-pg:
-        build: ../../postgres/12
-        image: sengorius/postgres:12
+        image: postgres:12
         container_name: ${PG_NAME}
         env_file: .env
         restart: unless-stopped
