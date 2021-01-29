@@ -4,7 +4,6 @@
 ### Colors
 ###
 
-COLOR_HEADLINE="\033[1;30m"
 COLOR_BLUE="\033[0;36m"
 COLOR_GREEN="\033[0;32m"
 COLOR_ORANGE="\033[0;33m"
@@ -50,7 +49,7 @@ if [[ -z "$PROXY_PATH" ]]; then
     SCRIPT_PATH=`realpath "$0"`
 
     echo
-    echo -e "${COLOR_HEADLINE}Installation:${COLOR_WHITE}"
+    echo -e "${COLOR_WHITE}Installation:"
     echo
     echo -e "  Make sure to clone the repository via ${COLOR_ORANGE}git clone${COLOR_WHITE} to this machine."
     echo -e "  Then open the ~/.bashrc file in an editor and add following lines:"
