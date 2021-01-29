@@ -21,7 +21,7 @@ services:
             - ${DATA_PATH}:/var/data
 
     proxy-db:
-        image: mysql:5.7
+        image: ${DB_IMAGE}
         container_name: ${DB_NAME}
         env_file: .env
         restart: unless-stopped
@@ -33,7 +33,7 @@ services:
             - ${DATA_PATH}:/var/data
 
     proxy-pg:
-        image: postgres:12
+        image: ${PG_IMAGE}
         container_name: ${PG_NAME}
         env_file: .env
         restart: unless-stopped
@@ -44,7 +44,7 @@ services:
             - ${DATA_PATH}:/var/data
 
     proxy-pma:
-        image: phpmyadmin/phpmyadmin:latest
+        image: ${PMA_IMAGE}
         container_name: ${PMA_NAME}
         env_file: .env
         restart: unless-stopped
@@ -53,7 +53,7 @@ services:
             VIRTUAL_PORT: 80
 
     proxy-adminer:
-        image: adminer:latest
+        image: ${ADMINER_IMAGE}
         container_name: ${ADMINER_NAME}
         env_file: .env
         restart: unless-stopped
@@ -62,8 +62,7 @@ services:
             VIRTUAL_PORT: 8080
 
     mailcatcher:
-        build: ../../dev-tool/mailcatcher
-        image: sengorius/mail-catcher:latest
+        image: sengorius/proxy-mailcatcher:latest
         container_name: ${SMTP_NAME}
         env_file: .env
         restart: unless-stopped
