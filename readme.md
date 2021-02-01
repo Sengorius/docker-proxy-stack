@@ -134,9 +134,15 @@ proxy network
 
 ## Docker-Proxy-Stack Update
 
+1. Simply use `DockerExec self-update`.
+1. read new release notes
+1. follow instructions in this `readme.md`
+
+### Manual update
+
 In the root directory of this repository 
 
-1. run `git pull`
+1. run `git fetch --tags && REVLIST=$(git rev-list --tags --max-count=1) && git checkout $(git describe --tags $REVLIST)`
 1. read new release notes
 1. follow instructions in this `readme.md`
 
