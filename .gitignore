@@ -15,8 +15,5 @@ tags
 !/dhparam/.gitignore
 
 ### certificates
-/certs/docker.test.crt
-/certs/docker.test.csr
-/certs/docker.test.key
-/certs/rootCA.crt
-/certs/rootCA.key
+/certs/*
+!/certs/.gitignore
