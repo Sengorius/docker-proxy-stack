@@ -14,10 +14,10 @@ services:
             - "80:80"
             - "443:443"
         volumes:
-            - ${CERTS_PATH}:/etc/nginx/certs
+            - ./certs:/etc/nginx/certs
+            - ./conf:/etc/nginx/conf.d
+            - ./dhparam:/etc/nginx/dhparam
             - ${SOCK_PATH}:/tmp/docker.sock:ro
-            - ${CONF_PATH}:/etc/nginx/conf.d
-            - ${DHPARAM_PATH}:/etc/nginx/dhparam
             - ${DATA_PATH}:/var/data
 
     proxy-db:

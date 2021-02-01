@@ -15,8 +15,8 @@ supports
 1. DB administration with PhpMyAdmin and Adminer
 1. catching E-Mails via SMTP with mailcatcher
 
-### So why do we do all this?
 
+### So why do we do all this?
 
 If you are running multiple web applications on one machine at the same time 
 you are running into a couple of issues.  
@@ -39,41 +39,60 @@ ressources. So
 - and set all of it up in a conveniant way with `DockerExec`.
 
 
-
 ## Installation
 
-1. Install Docker and Docker Compose.
-1. Clone the repository.
-1. Configure and create a root certificate
-   - run `DockerExec create-cert` and follow the prompts. This should create a
-   `certs` folder containing mkcert root certificates and the mkcert key and
-   certificate.
-1. Install the certificates on your dev machine:
-   - **Firefox:** `Settings -> Security -> Show Certificates`  
-     In the tab `certificate authorities` click `import`, navigate to the
-     aforementioned `/certs` folder and select `rootCA.pem` to import.
-   - **Chrome:** In `Settings -> Manage certificates -> Authorities` import the 
-   `rootCA.pem` from the `/certs` folder.  
-1. As root, edit your `hosts` file
-   - Linux: `/etc/hosts`
-   - Windows: `C:\Windows\system32\drivers\etc\hosts`  
-   to contain the line  
-   `127.0.0.1 docker.test`
-1. Copy over the file `.env.dist` to `.env` in the same folder and verify all 
-   values in `.env` to be to your requirements.  
-   (Windows uses a different `SOCKET_PATH` -- all other variables should be
-   fine.)
-1. Create the Docker network:  
-   The variable `NETWORK_NAME` in `.env` represents that network name all 
-   containers in this stack have to register in.  
-   Use `docker network create --attachable "{YOUR_NETWORK_NAME}"` once to create
-   the network. Don't change it afterwards.
-   - You can now test if the network was created.  
-     `docker network ls` should print a list of all networks including `YOUR_NETWORK_NAME`
-1. Inside the repository run `docker-compose up`.  
-   Docker will now download all necessary containers and run them.
-1. You can check if it all works with `docker ps -a`.  
-   All containers with the prefix `proxy-` should have the status `Up ... Seconds`.
+To make sure, anythin will run fine, a unix based system is necessary. Things
+might work with Windows, but it was never tested to do so.
+
+You will also need `docker`, `docker-compose`, `openssl`, `git` and a bash
+on you local machine. As all tasks are made for bash, a zsh or similar shells
+will work, too.
+
+### First setup
+
+Clone the repository somewhere to your machine. Make a copy of the `.env.template`
+and save it as `.env` into the same folder. (Windows uses a different `SOCKET_PATH`,
+all other variables should be fine.)
+
+Use a shell within the project directory
+and add execution rights to `DockerExec` with `chmod +x DockerExec`. Then type
+`./DockerExec` to promt for the installation instructions for `DockerExec`. Follow
+the instructions, close and reopen a shell to make it work.
+
+If the shell script was installed correctly, type `DockerExec help` to get a list of
+tasks, the `DockerExec` can do for you.
+
+As root user (or with `sudo`), edit your `/etc/hosts` file and add the line:  
+```
+127.0.0.1 docker.test
+```
+
+Run `DockerExec create-cert` and follow the prompts. This should create multiple
+certificates in the `certs` folder, containing a `rootCA.crt`. Any info you type
+into the prompts is optional. In the next step, you have to register this self-signed
+certificate to your default browser.
+
+#### Install the rootCA to Firefox
+
+Go to `Settings -> Security` and scroll to the bottom, then click `Show Certificates`.  
+In the tab `certificate authorities` click `import`, navigate to the
+aforementioned `/certs` folder and select `rootCA.crt` to import. Select both checkboxes
+and confirm.
+
+#### Install the rootCA to Chrome or Chromium
+
+In `Settings -> Manage certificates -> Authorities`. Navigate to the
+aforementioned `/certs` folder and select `rootCA.crt` to import.
+
+#### Sidenotes
+
+If you do not want to use the `DockerExec`, another network has to be created for the
+proxy containers. The variable `NETWORK_NAME` in `.env` represents that network name all 
+containers in this stack have to register in.  
+
+Use `docker network create --attachable "{YOUR_NETWORK_NAME}"` once to create
+the network. Don't change it afterwards. You can now test if the network was created with  
+`docker network ls`.
 
 
 ## How to add Projects to the Docker Proxy Network
@@ -115,9 +134,15 @@ proxy network
 
 ## Docker-Proxy-Stack Update
 
+1. Simply use `DockerExec self-update`.
+1. read new release notes
+1. follow instructions in this `readme.md`
+
+### Manual update
+
 In the root directory of this repository 
 
-1. run `git pull`
+1. run `git fetch --tags && REVLIST=$(git rev-list --tags --max-count=1) && git checkout $(git describe --tags $REVLIST)`
 1. read new release notes
 1. follow instructions in this `readme.md`
 
@@ -190,12 +215,10 @@ for usual interactions with the Docker-Proxy-Stack, we provice the Bash script
 1. Synchronize the containers `/etc/hosts` files automatically.
 1. Starting up a project will print the projects domain to your command line.
 
-
 ### How to install DockerExec?
 
 1. Run the script with `./path/to/DockerExec`.
 1. Follow the instructions provided by `DockerExec`.
-
 
 ### How to use DockerExec?
 
@@ -218,11 +241,10 @@ You also need Bash. `/bin/sh` will not suffice.
    variables. A best practice would be to have a version-controlled
    `.env.template` which you copy over to `.env` and customize on deployment.
 
-
 ### A Minimal Configuration for PHP
 
-Some environment variables cannot be read from the `.env` file and have to be manually added to the container under `environment`. E.g. the domain name.
-
+Some environment variables cannot be read from the `.env` file and have to be
+manually added to the container under `environment`. E.g. the domain name.
 
 ```yaml
 # docker-compose.proxy.yml

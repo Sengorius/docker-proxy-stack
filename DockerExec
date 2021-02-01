@@ -123,6 +123,7 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo -e "    ${COLOR_BLUE}watch-running ${COLOR_RED}\$cn${COLOR_WHITE}  - tests, whether a container with name '\$cn' is running and returns 'TRUE' or 'FALSE' as a string"
     echo -e "    ${COLOR_BLUE}status ${COLOR_RED}[\$fn]${COLOR_WHITE}       - creates a text file [\$fn] in current location that contains a list of images and runninge containers on this machine"
     echo -e "    ${COLOR_BLUE}init-certs${COLOR_WHITE}         - create openssl certificates to be registered in your browsers"
+    echo -e "    ${COLOR_BLUE}self-update${COLOR_WHITE}        - update the Docker Proxy Stack with the latest tag"
     echo
 
     exit 0
@@ -728,6 +729,28 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
         print_info "Done creating rootCA and certificates in $CERTS_PATH."
         print_info "Now register the rootCA.crt in your browser." 1
+
+    # shortcut to list all docker containers
+    elif [[ "self-update" == "$ACTION" ]]; then
+        if [[ ! -d "$PROXY_PATH/.git" ]]; then
+            print_error "No .git directory was found in proxy directory. Did you clone or download?"
+            print_error "If you downloaded this project, this command will not work. Please download the current archive." 1
+            exit 1
+        fi
+
+        cd "$PROXY_PATH"
+        git fetch --tags
+
+        LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` > /dev/null 2>&1)
+        if [[ "0" != "$?" ]]; then
+            cd "$CURRENT_DIR"
+            print_error "Failed to check out the latest tag. Sorry..." 1
+            exit 1
+        fi
+
+        git checkout $LATEST_TAG
+        cd "$CURRENT_DIR"
+        print_info "Updated the Docker Proxy Stack. Checked out version $LATEST_TAG." 1
 
     # shortcut to list all docker containers
     elif [[ "ps" == "$ACTION" ]]; then
