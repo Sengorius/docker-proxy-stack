@@ -13,3 +13,7 @@ tags
 !/data/.gitignore
 /dhparam/*
 !/dhparam/.gitignore
+
+### certificates
+/certs/*
+!/certs/.gitignore
