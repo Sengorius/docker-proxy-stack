@@ -741,14 +741,14 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         cd "$PROXY_PATH"
         git fetch --tags
 
-        LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1` > /dev/null 2>&1)
+        LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
         if [[ "0" != "$?" ]]; then
             cd "$CURRENT_DIR"
             print_error "Failed to check out the latest tag. Sorry..." 1
             exit 1
         fi
 
-        git checkout $LATEST_TAG
+        git checkout --quiet $LATEST_TAG
         cd "$CURRENT_DIR"
         print_info "Updated the Docker Proxy Stack. Checked out version $LATEST_TAG." 1
 

@@ -15,6 +15,9 @@ supports
 1. DB administration with PhpMyAdmin and Adminer
 1. catching E-Mails via SMTP with mailcatcher
 
+Its tools are based on the [nginx-proxy](https://github.com/nginx-proxy/nginx-proxy)
+from Jason Wilder and his contributors.
+
 
 ### So why do we do all this?
 
