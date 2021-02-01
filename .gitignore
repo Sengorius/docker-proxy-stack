@@ -1,6 +1,19 @@
+/.idea
+tags
+
+# environment files
 .env
 .current-hosts
-tags
+
+# nginx conf
 /conf/default.conf
-/dhparam
-/data
+
+# generated and storage files
+/data/*
+!/data/.gitignore
+/dhparam/*
+!/dhparam/.gitignore
+
+### certificates
+/certs/*
+!/certs/.gitignore

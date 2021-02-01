@@ -4,7 +4,6 @@
 ### Colors
 ###
 
-COLOR_HEADLINE="\033[1;30m"
 COLOR_BLUE="\033[0;36m"
 COLOR_GREEN="\033[0;32m"
 COLOR_ORANGE="\033[0;33m"
@@ -50,17 +49,17 @@ if [[ -z "$PROXY_PATH" ]]; then
     SCRIPT_PATH=`realpath "$0"`
 
     echo
-    echo -e "${COLOR_HEADLINE}Installation:${COLOR_WHITE}"
+    echo -e "${COLOR_WHITE}Installation:"
     echo
-    echo -e "  Zuerst den NGINX-Proxy per ${COLOR_ORANGE}git clone${COLOR_WHITE} auf diese Maschine kopieren."
-    echo -e "  Dann in deine .bashrc Datei folgende Zeilen einfügen:"
+    echo -e "  Make sure to clone the repository via ${COLOR_ORANGE}git clone${COLOR_WHITE} to this machine."
+    echo -e "  Then open the ~/.bashrc file in an editor and add following lines:"
     echo
-    echo -e "${COLOR_ORANGE}    # enable DockerExec${COLOR_WHITE}"
-    echo -e "${COLOR_ORANGE}    PROXY_PATH='/pfad/zum/nginx-proxy/verzeichnis'${COLOR_WHITE} # hier bitte ergänzen"
-    echo -e "${COLOR_ORANGE}    alias DockerExec='PROXY_PATH=\$PROXY_PATH $SCRIPT_PATH'${COLOR_WHITE}"
+    echo -e "${COLOR_ORANGE}    # enable DockerExec (docker-proxy-stack)${COLOR_WHITE}"
+    echo -e "${COLOR_ORANGE}    PROXY_PATH='/path/to/docker-proxy-stack'${COLOR_WHITE} # change this"
+    echo -e "${COLOR_ORANGE}    alias DockerExec='PROXY_PATH=\$PROXY_PATH $SCRIPT_PATH'${COLOR_WHITE} # do not change this"
     echo
-    echo -e "  Die .bashrc findest du unter Windows bei ${COLOR_ORANGE}C:\Users\%username%\.bashrc${COLOR_WHITE}, sofern Git for Windows installiert ist."
-    echo -e "  Unter Linux liegt diese bei ${COLOR_ORANGE}/home/\$USER/.bashrc${COLOR_WHITE}."
+    echo -e "  On Windows, the .bashrc is probably located at ${COLOR_ORANGE}C:\Users\%username%\.bashrc${COLOR_WHITE},"
+    echo -e "  if  'Git for Windows' or some WSL is installed."
     echo
 
     exit 0
@@ -95,34 +94,35 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     BN=`basename $0`
 
     echo
-    echo -e "${COLOR_HEADLINE}Verwendung:${COLOR_WHITE}"
-    echo -e "  $BN ${COLOR_GREEN}[Umgebung] ${COLOR_BLUE}[Option] ${COLOR_RED}[\$Parameter(s)] ${COLOR_WHITE}"
+    echo -e "${COLOR_WHITE}Usage:"
+    echo -e "  $BN ${COLOR_GREEN}[Environment] ${COLOR_BLUE}[Option] ${COLOR_RED}[\$Parameter(s)] ${COLOR_WHITE}"
     echo
-    echo -e "${COLOR_HEADLINE}Umgebungen mit ihren Optionen:${COLOR_WHITE}"
-    echo -e " ${COLOR_GREEN}dev${COLOR_WHITE}: Steuerung der docker-compose.yml bzw. docker-compose.dev.yml"
-    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - führt ein erweitertes docker-compose up aus"
-    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - beendet das Docker-Compose Setup"
+    echo -e "${COLOR_WHITE}Environments and their options:"
+    echo -e " ${COLOR_GREEN}dev${COLOR_WHITE}: Controls for docker-compose.yml and docker-compose.dev.yml"
+    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
+    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
     echo
-    echo -e " ${COLOR_GREEN}prod${COLOR_WHITE}: Steuerung der docker-compose.prod.yml"
-    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - führt ein erweitertes docker-compose up aus"
-    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - beendet das Docker-Compose Setup"
+    echo -e " ${COLOR_GREEN}prod${COLOR_WHITE}: Controls for docker-compose.prod.yml"
+    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
+    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
     echo
-    echo -e " ${COLOR_GREEN}proxy${COLOR_WHITE}: Steuerung der docker-compose.proxy.yml"
-    echo -e "    ${COLOR_BLUE}init${COLOR_WHITE}               - startet den NGINX Proxy Container und erstellt das Netzwerk"
-    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - fährt den NGINX Proxy herunter"
-    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - startet das hiesige docker-compose mit der Proxy Konfiguration"
-    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - beendet das hiesige docker-compose Setup"
-    echo -e "    ${COLOR_BLUE}db ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - startet eine Bash für die MySQL Proxy-Datenbank (dev) [oder importiert direkt eine .sql Datei in \$db]"
-    echo -e "    ${COLOR_BLUE}pg ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - startet eine Bash für die Postgres Proxy-Datenbank (dev) [oder importiert direkt eine .sql Datei in \$db]"
-    echo -e "    ${COLOR_BLUE}generate${COLOR_WHITE} ${COLOR_RED}[\$dp]${COLOR_WHITE}     - erstellt eine docker-compose.proxy.yaml + .env Datei mit Link auf [\$dp].docker.test"
+    echo -e " ${COLOR_GREEN}proxy${COLOR_WHITE}: Controls docker-compose.proxy.yml and the proxy stack"
+    echo -e "    ${COLOR_BLUE}init${COLOR_WHITE}               - starts the docker NGINX proxy stack and creates a netzwork, if necessary"
+    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - shuts the docker NGINX proxy stack down"
+    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
+    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
+    echo -e "    ${COLOR_BLUE}db ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - running a bash on the MySQL proxy database [or will import an .sql file with specified \$dbname and \$filename]"
+    echo -e "    ${COLOR_BLUE}pg ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - running a bash on the Postgres proxy database [or will import an .sql file with specified \$dbname and \$filename]"
+    echo -e "    ${COLOR_BLUE}generate${COLOR_WHITE} ${COLOR_RED}[\$dp]${COLOR_WHITE}     - creates a docker-compose.proxy.yaml + .env file with linked [\$dp].docker.test"
     echo
-    echo -e " ${COLOR_GREEN}do${COLOR_WHITE}: Zusätzliche Tools"
-    echo -e "    ${COLOR_BLUE}ps${COLOR_WHITE}                 - listet alle Container auf"
-    echo -e "    ${COLOR_BLUE}remove${COLOR_WHITE}             - entfernt alle gestoppten Container"
-    echo -e "    ${COLOR_BLUE}cleanup${COLOR_WHITE}            - entfernt alle images, die nicht mehr gebraucht werden"
-    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - stoppt und entfernt dann alle aktuell laufenden Container"
-    echo -e "    ${COLOR_BLUE}watch-running ${COLOR_RED}\$cn${COLOR_WHITE}  - testet, ob ein Container mit Namen '\$cn' läuft und gibt bei Erfolg 'true' zurück"
-    echo -e "    ${COLOR_BLUE}status ${COLOR_RED}[\$fn]${COLOR_WHITE}       - erstellt eine Text-Datei [\$fn] mit Informationen zum aktuellen Docker Status"
+    echo -e " ${COLOR_GREEN}do${COLOR_WHITE}: Other tools"
+    echo -e "    ${COLOR_BLUE}ps${COLOR_WHITE}                 - lists all containers like 'docker ps -a'"
+    echo -e "    ${COLOR_BLUE}remove${COLOR_WHITE}             - does a 'docker rm' to all containers that have stopped running"
+    echo -e "    ${COLOR_BLUE}cleanup${COLOR_WHITE}            - deletes all docker images, that have a <none> as tag name or image id"
+    echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - stops and removes all current containers, like 'docker stop && docker rm'"
+    echo -e "    ${COLOR_BLUE}watch-running ${COLOR_RED}\$cn${COLOR_WHITE}  - tests, whether a container with name '\$cn' is running and returns 'TRUE' or 'FALSE' as a string"
+    echo -e "    ${COLOR_BLUE}status ${COLOR_RED}[\$fn]${COLOR_WHITE}       - creates a text file [\$fn] in current location that contains a list of images and runninge containers on this machine"
+    echo -e "    ${COLOR_BLUE}init-certs${COLOR_WHITE}         - create openssl certificates to be registered in your browsers"
     echo
 
     exit 0
@@ -130,19 +130,23 @@ fi
 
 # test, if proxy directory is existing
 if [[ ! -z "$PROXY_PATH" && ! -d "$PROXY_PATH" ]]; then
-    print_error "Der Pfad zum Proxy scheint nicht zu exisieren..." 1
+    print_error "The path to the docker-proxy-stack directory seems no to be configured correctly..." 1
     exit 1
 fi
+
+# remove the trailing slash
+PROXY_PATH=${PROXY_PATH%/}
 
 # set some more defaults
 ENV_FILE=".env"
 CURRENT_DIR=`pwd`
 LINUX_HOSTS=/etc/hosts
+CERTS_PATH="$PROXY_PATH/certs"
 STATUS_FILE_NAME="docker_current.txt"
 TEMP_HOSTS_FILE=".current-hosts"
 TEMP_HOSTS_PATH="$PROXY_PATH/$TEMP_HOSTS_FILE"
 
-# offer a function to test a directory on havin valid .env and (.yml or .yaml)
+# offer a function to test a directory on having valid .env and (.yml or .yaml)
 function test_files() {
     local ENV_FILE=$1
     local COMPOSE=$2
@@ -150,13 +154,13 @@ function test_files() {
     local COMPOSE_V2="$COMPOSE.yaml"
 
     if [[ ! ( -e "$ENV_FILE" || -f "$ENV_FILE" ) ]]; then
-        print_error "Die $ENV_FILE Datei wurde nicht gefunden! Bist du im Projekt-Verzeichnis?" 1
+        print_error "The $ENV_FILE file was not found! Are you located in your project directory?" 1
         exit 1
     fi
 
     if [[ ! ( -e "$COMPOSE_V1" || -f "$COMPOSE_V1" ) ]]; then
         if [[ ! ( -e "$COMPOSE_V2" || -f "$COMPOSE_V2" ) ]]; then
-            print_error "Die $COMPOSE_V1 bzw. $COMPOSE_V2 Datei wurde nicht gefunden! Bist du im Projekt-Verzeichnis?" 1
+            print_error "No $COMPOSE_V1 or $COMPOSE_V2 file was found! Are you located in your project directory?" 1
             exit 1
         else
             echo $COMPOSE_V2
@@ -175,13 +179,13 @@ function test_files_proxy() {
     local COMPOSE_V2="$COMPOSE.yaml"
 
     if [[ ! ( -e "$ENV_FILE" || -f "$ENV_FILE" ) ]]; then
-        print_error "Die $ENV_FILE Datei wurde nicht gefunden! Der Proxy benötigt noch entsprechende Konfiguration!" 1
+        print_error "The $ENV_FILE file was not found! The proxy-stack is not configured, yet!" 1
         exit 1
     fi
 
     if [[ ! ( -e "$COMPOSE_V1" || -f "$COMPOSE_V1" ) ]]; then
         if [[ ! ( -e "$COMPOSE_V2" || -f "$COMPOSE_V2" ) ]]; then
-            print_error "Die $COMPOSE_V1 bzw. $COMPOSE_V2 Datei wurde nicht gefunden! Da stimmt irgendwas nicht..." 1
+            print_error "No $COMPOSE_V1 or $COMPOSE_V2 file was found! Something is wrong here..." 1
             exit 1
         else
             echo $COMPOSE_V2
@@ -344,7 +348,21 @@ function publish_host_files() {
         COUNTER=$((COUNTER+1))
     done <<< "$TARGET_CONTAINERS"
 
-    print_info "Die /etc/hosts Datei von $COUNTER Proxy-Containern wurde aktualisiert!"
+    print_info "The /etc/hosts file of $COUNTER proxy containers was updated successfully!"
+}
+
+# shortcut to get a value from user (stdin) or return a default value
+function match_answer_or_default() {
+    local QUESTION=$1
+    local DEFAULT=$2
+
+    read -r -p "$QUESTION" ANSWER
+
+    if [[ ! -z "$ANSWER" ]]; then
+        echo $ANSWER
+    else
+        echo $DEFAULT
+    fi
 }
 
 # watch the environment
@@ -359,16 +377,14 @@ if [[ "dev" == "$ENVIRONMENT" ]]; then
     # start the docker-compose
     if [[ "start" == "$ACTION" ]]; then
         compose_run "$COMPOSE" "$ENV_FILE"
-        exit 0
 
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
         docker-compose stop
         docker-compose rm -f
-        exit 0
 
     else
-        print_error "Unbekannte Option '$ACTION'..." 1
+        print_error "Unknown option '$ACTION'..." 1
         exit 1
     fi
 
@@ -383,17 +399,15 @@ elif [[ "prod" == "$ENVIRONMENT" ]]; then
     # start the docker-compose
     if [[ "start" == "$ACTION" ]]; then
         compose_run "$COMPOSE" "$ENV_FILE"
-        exit 0
 
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
         update_host_files "$ENV_FILE" "remove"
         docker-compose -f "$COMPOSE" stop
         docker-compose -f "$COMPOSE" rm -f
-        exit 0
 
     else
-        print_error "Unbekannte Option '$ACTION'..." 1
+        print_error "Unknown option '$ACTION'..." 1
         exit 1
     fi
 
@@ -410,6 +424,12 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             exit 1
         fi
 
+        # check the /certs directory
+        if [[ ! -d "$CERTS_PATH" || ! -f "$CERTS_PATH/docker.test.key" ]]; then
+            print_error "The proxy is not ready to start, yet! Try 'DockerExec do init-certs' to fix this."
+            exit 1
+        fi
+
         # fetch parameters from .env file
         PROXY_NAME=`grep "^PROXY_NAME=" "$ENV_FILE" | sed -e 's/^PROXY_NAME=//' | sed -e 's/[[:space:]]*$//'`
         NETWORK_NAME=`grep "^NETWORK_NAME=" "$ENV_FILE" | sed -e 's/^NETWORK_NAME=//' | sed -e 's/[[:space:]]*$//'`
@@ -418,7 +438,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         NETWORK_EXISTS=`docker network ls | grep "$NETWORK_NAME"`
         if [[ -z "$NETWORK_EXISTS" ]]; then
             docker network create --attachable "$NETWORK_NAME"
-            print_info "Netzwerk $NETWORK_NAME wurde angelegt!"
+            print_info "Network $NETWORK_NAME was created successfully!"
         fi
 
         # reset the temporary hosts
@@ -430,7 +450,6 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         # print out all found hosts and start compose
         print_hosts "$COMPOSE"
         docker-compose up
-        exit 0
 
     # stop and remove the proxy
     elif [[ "finish" == "$ACTION" ]]; then
@@ -441,8 +460,9 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         docker-compose rm -f
 
         # remove the temporary hosts
-        rm "$TEMP_HOSTS_PATH"
-        exit 0
+        if [[ -f "$TEMP_HOSTS_PATH" ]]; then
+            rm "$TEMP_HOSTS_PATH"
+        fi
 
     # start the docker-compose
     elif [[ "start" == "$ACTION" ]]; then
@@ -456,7 +476,6 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         # print out all found hosts and start
         print_hosts "$COMPOSE"
         compose_run "$COMPOSE" "$ENV_FILE"
-        exit 0
 
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
@@ -470,45 +489,46 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         update_host_files "$ENV_FILE" "remove"
         docker-compose -f "$COMPOSE" stop
         docker-compose -f "$COMPOSE" rm -f
-        exit 0
 
     # start the docker proxy db with bash
     elif [[ "db" == "$ACTION" ]]; then
-        RUNNING_APP=`docker ps -aq -f name="proxy-db" -f status="running"`
+        DB_NAME=`grep "^DB_NAME=" "$ENV_FILE" | sed -e 's/^DB_NAME=//' | sed -e 's/[[:space:]]*$//'`
+        RUNNING_APP=`docker ps -aq -f name="$DB_NAME" -f status="running"`
 
         if [[ ! -z "$RUNNING_APP" ]]; then
             USE_DATABASE="${PARAMETERS[0]}"
             USE_DB_FILE="${PARAMETERS[1]}"
 
             if [[ ! -z "$USE_DATABASE" && ! -z "$USE_DB_FILE" ]]; then
-                docker exec -it proxy-db bash -c "mysql -proot -e 'CREATE DATABASE IF NOT EXISTS $USE_DATABASE' && mysql -proot '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
+                docker exec -it "$DB_NAME" bash -c "mysql -proot -e 'CREATE DATABASE IF NOT EXISTS $USE_DATABASE' && mysql -proot '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
                 print_info "Done"
             else
-                docker exec -it proxy-db bash -c "cd /var/data && bash"
+                docker exec -it "$DB_NAME" bash -c "cd /var/data && bash"
             fi
-            exit 0
+
         else
-            print_error "Der Container proxy-db läuft im moment gar nicht..." 1
+            print_error "The $DB_NAME container is not up and running..." 1
             exit 1
         fi
 
     # start the docker proxy pg with bash
     elif [[ "pg" == "$ACTION" ]]; then
-        RUNNING_APP=`docker ps -aq -f name="proxy-pg" -f status="running"`
+        PG_NAME=`grep "^PG_NAME=" "$ENV_FILE" | sed -e 's/^PG_NAME=//' | sed -e 's/[[:space:]]*$//'`
+        RUNNING_APP=`docker ps -aq -f name="$PG_NAME" -f status="running"`
 
         if [[ ! -z "$RUNNING_APP" ]]; then
             USE_DATABASE="${PARAMETERS[0]}"
             USE_DB_FILE="${PARAMETERS[1]}"
 
             if [[ ! -z "$USE_DATABASE" && ! -z "$USE_DB_FILE" ]]; then
-                docker exec -it proxy-pg bash -c "echo \"SELECT 'CREATE DATABASE $USE_DATABASE' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$USE_DATABASE')\gexec\" | psql && psql -d '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
+                docker exec -it "$PG_NAME" bash -c "echo \"SELECT 'CREATE DATABASE $USE_DATABASE' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$USE_DATABASE')\gexec\" | psql && psql -d '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
                 print_info "Done"
             else
-                docker exec -it proxy-pg bash -c "cd /var/data && bash"
+                docker exec -it "$PG_NAME" bash -c "cd /var/data && bash"
             fi
-            exit 0
+
         else
-            print_error "Der Container proxy-pg läuft im moment gar nicht..." 1
+            print_error "The $PG_NAME container is not up and running..." 1
             exit 1
         fi
 
@@ -555,7 +575,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
                 echo
             } >> docker-compose.proxy.yaml
 
-            print_info "Eine docker-compose.proxy.yaml wurde erstellt."
+            print_info "A docker-compose.proxy.yaml was added."
         fi
 
         if [[ ! -f "$ENV_FILE" ]]; then
@@ -568,13 +588,11 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
                 echo
             } >> .env
 
-            print_info "Eine .env wurde erstellt."
+            print_info "A .env was added."
         fi
 
-        exit 0
-
     else
-        print_error "Unbekannte Option '$ACTION'..." 1
+        print_error "Unknown option '$ACTION'..." 1
         exit 1
     fi
 
@@ -583,18 +601,18 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
     if [[ "finish" == "$ACTION" ]]; then
         docker stop $(docker ps -aq)
         docker rm -f $(docker ps -aq)
-        rm "$TEMP_HOSTS_PATH"
-        exit 0
+
+        if [[ -f "$TEMP_HOSTS_PATH" ]]; then
+            rm "$TEMP_HOSTS_PATH"
+        fi
 
     # remove all stopped containers
     elif [[ "remove" == "$ACTION" ]]; then
         docker rm -f $(docker ps -aq -f "status=exited")
-        exit 0
 
     # remove all images that are no more in use
     elif [[ "cleanup" == "$ACTION" ]]; then
         docker rmi -f $(docker images | grep "<none>" | awk "{print \$3}")
-        exit 0
 
     # test, if a container is running
     elif [[ "watch-running" == "$ACTION" ]]; then
@@ -612,8 +630,6 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         else
             echo "FALSE"
         fi
-
-        exit 0
 
     # print the current state of Docker into a file
     elif [[ "status" == "$ACTION" ]]; then
@@ -651,20 +667,79 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
                 ;;
         esac
 
-        exit 0
+    # use prompts to generate certificates for browser usage
+    # see https://gist.github.com/fntlnz/cf14feb5a46b2eda428e000157447309
+    # see https://two-oes.medium.com/working-with-openssl-and-dns-alternative-names-367f06a23841
+    # see https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
+    # to test a .crt file, try: openssl x509 -in certs/docker.test.crt -text -noout
+    elif [[ "init-certs" == "$ACTION" ]]; then
+        if [[ -z `which openssl` ]]; then
+            print_error "Openssl seems not to be installed on this machine. But it is necessary to generate keys..." 1
+            exit 1
+        fi
+
+        # create the certs path, if not done, yet
+        if [[ ! -d "$CERTS_PATH" ]]; then
+            mkdir -p "$CERTS_PATH"
+        fi
+
+        # some security info
+        print_info "Attention: This is the key used to sign the certificate requests. Anyone holding this can sign certificates on your behalf. So keep it safe!"
+
+        # ask the user for some details on the certificate
+        RSA_KEY_LENGTH=`match_answer_or_default "Define a key size [4096]: " 4096`
+        RSA_VALID_DAYS=`match_answer_or_default "How long shall this certificate be valid (in days) [3650]: " 3650`
+        RSA_COUNTRY_NAME=`match_answer_or_default "Country Name (2 letter code) [PS]: " "PS"`
+        RSA_STATE_NAME=`match_answer_or_default "State or Province Name (full name) [Proxy Environment]: " "Proxy Environment"`
+        RSA_LOCALITY_NAME=`match_answer_or_default "Locality Name (some city) [Proxy]: " "Proxy"`
+        RSA_ORG_NAME=`match_answer_or_default "Organization Name (some company) [Docker Proxy Stack]: " "Docker Proxy Stack"`
+        RSA_ORGUNIT_NAME=`match_answer_or_default "Organizational Unit Name (a section) [Docker Proxy Stack]: " "Docker Proxy Stack"`
+        RSA_EMAIL=`match_answer_or_default "E-Mail Address []: " ""`
+
+        # create complex variables
+        DOMAIN_ALT_NAMES="DNS:docker.test,DNS:*.docker.test,DNS:localhost,DNS:127.0.0.1,DNS:0:0:0:0:0:0:0:1"
+        CERT_SUBJECT="/C=$RSA_COUNTRY_NAME/ST=$RSA_STATE_NAME/L=$RSA_LOCALITY_NAME/O=$RSA_ORG_NAME/OU=$RSA_ORGUNIT_NAME/emailAddress=$RSA_EMAIL/CN=docker.test"
+
+        # create a root key and rootCA for docker.test
+        openssl genrsa -out "$CERTS_PATH/rootCA.key" $RSA_KEY_LENGTH
+        openssl req -x509 -new -nodes -sha256 \
+            -key "$CERTS_PATH/rootCA.key" \
+            -subj "$CERT_SUBJECT" \
+            -days $RSA_VALID_DAYS \
+            -out "$CERTS_PATH/rootCA.crt"
+
+        # create a certificate for docker.test
+        openssl genrsa -out "$CERTS_PATH/docker.test.key" $RSA_KEY_LENGTH
+        openssl req -new -sha256 \
+            -key "$CERTS_PATH/docker.test.key" \
+            -subj "$CERT_SUBJECT" \
+            -reqexts SAN \
+            -config <(cat /etc/ssl/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=$DOMAIN_ALT_NAMES")) \
+            -out "$CERTS_PATH/docker.test.csr"
+
+        # last step: sign the domain certificate with the rootCA
+        openssl x509 -req -sha256 -CAcreateserial \
+            -in "$CERTS_PATH/docker.test.csr" \
+            -CA "$CERTS_PATH/rootCA.crt" \
+            -CAkey "$CERTS_PATH/rootCA.key" \
+            -out "$CERTS_PATH/docker.test.crt" \
+            -days $RSA_VALID_DAYS \
+            -extfile <(printf "subjectAltName=$DOMAIN_ALT_NAMES")
+
+        print_info "Done creating rootCA and certificates in $CERTS_PATH."
+        print_info "Now register the rootCA.crt in your browser." 1
 
     # shortcut to list all docker containers
     elif [[ "ps" == "$ACTION" ]]; then
         docker ps -a --format "table {{.Image}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
-        exit 0
 
     else
-        print_error "Unbekannte Option '$ACTION'..." 1
+        print_error "Unknown option '$ACTION'..." 1
         exit 1
     fi
 
 else
-    print_error "Es gibt keine Umgebung mit dem Namen '$ENVIRONMENT'..." 1
+    print_error "There is no environment named '$ENVIRONMENT'..." 1
     exit 1
 fi
 
