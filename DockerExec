@@ -351,6 +351,20 @@ function publish_host_files() {
     print_info "The /etc/hosts file of $COUNTER proxy containers was updated successfully!"
 }
 
+# shortcut to get a value from user (stdin) or return a default value
+function match_answer_or_default() {
+    local QUESTION=$1
+    local DEFAULT=$2
+
+    read -r -p "$QUESTION" ANSWER
+
+    if [[ ! -z "$ANSWER" ]]; then
+        echo $ANSWER
+    else
+        echo $DEFAULT
+    fi
+}
+
 # watch the environment
 if [[ "dev" == "$ENVIRONMENT" ]]; then
     # test project files
@@ -673,109 +687,47 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         print_info "Attention: This is the key used to sign the certificate requests. Anyone holding this can sign certificates on your behalf. So keep it safe!"
 
         # ask the user for some details on the certificate
-        read -r -p "Define a key size. Default is 4096, which does a good job in security. [4096]: " rsa_key_length
-        read -r -p "How long shall this certificate be valid (in days) [3650]: " rsa_valid_days
-        read -r -p "Add an organisation name to differ certain keys [none]: " rsa_org_name
+        RSA_KEY_LENGTH=`match_answer_or_default "Define a key size [4096]: " 4096`
+        RSA_VALID_DAYS=`match_answer_or_default "How long shall this certificate be valid (in days) [3650]: " 3650`
+        RSA_COUNTRY_NAME=`match_answer_or_default "Country Name (2 letter code) [PS]: " "PS"`
+        RSA_STATE_NAME=`match_answer_or_default "State or Province Name (full name) [Proxy Environment]: " "Proxy Environment"`
+        RSA_LOCALITY_NAME=`match_answer_or_default "Locality Name (some city) [Proxy]: " "Proxy"`
+        RSA_ORG_NAME=`match_answer_or_default "Organization Name (some company) [Docker Proxy Stack]: " "Docker Proxy Stack"`
+        RSA_ORGUNIT_NAME=`match_answer_or_default "Organizational Unit Name (a section) [Docker Proxy Stack]: " "Docker Proxy Stack"`
+        RSA_EMAIL=`match_answer_or_default "E-Mail Address []: " ""`
 
-        RSA_KEY_LENGTH=4096
-        if [[ ! -z "$rsa_key_length" ]]; then
-            RSA_KEY_LENGTH=$rsa_key_length
-        fi
-
-        RSA_VALID_DAYS=3650
-        if [[ ! -z "$rsa_valid_days" ]]; then
-            RSA_VALID_DAYS=$rsa_valid_days
-        fi
-
-        RSA_ORG_NAME="Docker Development"
-        if [[ ! -z "$rsa_org_name" ]]; then
-            RSA_ORG_NAME="$rsa_org_name"
-        fi
-
-        # create config files for openssl
-        cat > "$CERTS_PATH/domain.config" << EOF
-[req]
-default_bits = $RSA_KEY_LENGTH
-prompt = no
-default_md = sha256
-x509_extensions = req_ext
-req_extensions = req_ext
-distinguished_name = dn
-
-[ dn ]
-O = $RSA_ORG_NAME
-OU = Docker Proxy Stack
-CN = docker.test
-
-[ req_ext ]
-subjectAltName = @alt_names
-extendedKeyUsage = serverAuth
-basicConstraints = critical, CA:false
-
-[ alt_names ]
-DNS.1 = docker.test
-DNS.2 = *.docker.test
-DNS.3 = localhost
-IP.4 = 127.0.0.1
-IP.5 = 0:0:0:0:0:0:0:1
-EOF
-
-        cat > "$CERTS_PATH/ca.config" << EOF
-[req]
-default_bits = $RSA_KEY_LENGTH
-prompt = no
-default_md = sha256
-x509_extensions = usr_cert
-distinguished_name = dn
-
-[ dn ]
-O = $RSA_ORG_NAME
-OU = Docker Proxy Stack
-CN = Docker Proxy Stack
-
-[ usr_cert ]
-keyUsage = critical, keyCertSign
-basicConstraints = critical, @basic_constraints
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid, issuer
-
-[ basic_constraints ]
-CA = true
-pathlen = 0
-EOF
+        # create complex variables
+        DOMAIN_ALT_NAMES="DNS:docker.test,DNS:*.docker.test,DNS:localhost,DNS:127.0.0.1,DNS:0:0:0:0:0:0:0:1"
+        CERT_SUBJECT="/C=$RSA_COUNTRY_NAME/ST=$RSA_STATE_NAME/L=$RSA_LOCALITY_NAME/O=$RSA_ORG_NAME/OU=$RSA_ORGUNIT_NAME/emailAddress=$RSA_EMAIL/CN=docker.test"
 
         # create a root key and rootCA for docker.test
         openssl genrsa -out "$CERTS_PATH/rootCA.key" $RSA_KEY_LENGTH
-        openssl req -new -x509 -nodes -key "$CERTS_PATH/rootCA.key" \
+        openssl req -x509 -new -nodes -sha256 \
+            -key "$CERTS_PATH/rootCA.key" \
+            -subj "$CERT_SUBJECT" \
             -days $RSA_VALID_DAYS \
-            -out "$CERTS_PATH/rootCA.crt" \
-            -config <( cat "$CERTS_PATH/ca.config" )
+            -out "$CERTS_PATH/rootCA.crt"
 
         # create a certificate for docker.test
         openssl genrsa -out "$CERTS_PATH/docker.test.key" $RSA_KEY_LENGTH
-        openssl req -new -x509 -nodes -key "$CERTS_PATH/docker.test.key" \
-            -days $RSA_VALID_DAYS \
-            -out "$CERTS_PATH/docker.test.csr" \
-            -config <( cat "$CERTS_PATH/domain.config" )
+        openssl req -new -sha256 \
+            -key "$CERTS_PATH/docker.test.key" \
+            -subj "$CERT_SUBJECT" \
+            -reqexts SAN \
+            -config <(cat /etc/ssl/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=$DOMAIN_ALT_NAMES")) \
+            -out "$CERTS_PATH/docker.test.csr"
 
         # last step: sign the domain certificate with the rootCA
-        openssl x509 -req -CAcreateserial \
+        openssl x509 -req -sha256 -CAcreateserial \
             -in "$CERTS_PATH/docker.test.csr" \
             -CA "$CERTS_PATH/rootCA.crt" \
             -CAkey "$CERTS_PATH/rootCA.key" \
             -out "$CERTS_PATH/docker.test.crt" \
             -days $RSA_VALID_DAYS \
-            -extensions 'req_ext' \
-            -extfile <(cat "$CERTS_PATH/domain.config" )
+            -extfile <(printf "subjectAltName=$DOMAIN_ALT_NAMES")
 
-        # rm the temporary config files
-        if [[ -f "$CERTS_PATH/domain.config" ]]; then
-            rm -f "$CERTS_PATH/domain.config"
-        fi
-
-        if [[ -f "$CERTS_PATH/ca.config" ]]; then
-            rm -f "$CERTS_PATH/ca.config"
-        fi
+        print_info "Done creating rootCA and certificates in $CERTS_PATH."
+        print_info "Now register the rootCA.crt in your browser." 1
 
     # shortcut to list all docker containers
     elif [[ "ps" == "$ACTION" ]]; then
