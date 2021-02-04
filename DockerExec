@@ -151,16 +151,16 @@ if [[ ! -z "$PROXY_PATH" && ! -d "$PROXY_PATH" ]]; then
 fi
 
 # test existence of docker and docker-compose
-if [[ -z `which docker` ]]; then
+command -v docker > /dev/null 2>&1 || {
     print_error "There was no docker executable found on this machine. Did you install docker correctly?" 1
     exit 1
-fi
+}
 
-if [[ -z `which docker-compose` ]]; then
+command -v docker-compose > /dev/null 2>&1 || {
     print_error "There was no docker-composer executable found on this machine. Did you install docker correctly?"
     print_error "If you use a differen alias, please create one called 'docker-compose' for your user." 1
     exit 1
-fi
+}
 
 # remove the trailing slash
 PROXY_PATH=${PROXY_PATH%/}
@@ -700,10 +700,10 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
     # see https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
     # to test a .crt file, try: openssl x509 -in certs/docker.test.crt -text -noout
     elif [[ "init-certs" == "$ACTION" ]]; then
-        if [[ -z `which openssl` ]]; then
+        command -v openssl > /dev/null 2>&1 || {
             print_error "Openssl seems not to be installed on this machine. But it is necessary to generate keys..." 1
             exit 1
-        fi
+        }
 
         # create the certs path, if not done, yet
         if [[ ! -d "$CERTS_PATH" ]]; then
