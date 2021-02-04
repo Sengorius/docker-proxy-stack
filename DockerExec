@@ -41,6 +41,21 @@ function print_info() {
     fi
 }
 
+function print_warning() {
+    local MESSAGE=$1
+    local NEWLINE=$2
+
+    if [[ -z "$NEWLINE" ]]; then
+        NEWLINE=0
+    fi
+
+    echo -e "${COLOR_ORANGE}$MESSAGE${COLOR_WHITE}"
+
+    if [[ "1" == "$NEWLINE" ]]; then
+        echo
+    fi
+}
+
 
 ###
 ### How to install this script
@@ -134,6 +149,18 @@ if [[ ! -z "$PROXY_PATH" && ! -d "$PROXY_PATH" ]]; then
     print_error "The path to the docker-proxy-stack directory seems no to be configured correctly..." 1
     exit 1
 fi
+
+# test existence of docker and docker-compose
+command -v docker > /dev/null 2>&1 || {
+    print_error "There was no docker executable found on this machine. Did you install docker correctly?" 1
+    exit 1
+}
+
+command -v docker-compose > /dev/null 2>&1 || {
+    print_error "There was no docker-composer executable found on this machine. Did you install docker correctly?"
+    print_error "If you use a differen alias, please create one called 'docker-compose' for your user." 1
+    exit 1
+}
 
 # remove the trailing slash
 PROXY_PATH=${PROXY_PATH%/}
@@ -427,8 +454,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
         # check the /certs directory
         if [[ ! -d "$CERTS_PATH" || ! -f "$CERTS_PATH/docker.test.key" ]]; then
-            print_error "The proxy is not ready to start, yet! Try 'DockerExec do init-certs' to fix this."
-            exit 1
+            print_warning "The proxy is not fully configured, yet! Try 'DockerExec init-certs' to fix this."
         fi
 
         # fetch parameters from .env file
@@ -674,10 +700,10 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
     # see https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
     # to test a .crt file, try: openssl x509 -in certs/docker.test.crt -text -noout
     elif [[ "init-certs" == "$ACTION" ]]; then
-        if [[ -z `which openssl` ]]; then
+        command -v openssl > /dev/null 2>&1 || {
             print_error "Openssl seems not to be installed on this machine. But it is necessary to generate keys..." 1
             exit 1
-        fi
+        }
 
         # create the certs path, if not done, yet
         if [[ ! -d "$CERTS_PATH" ]]; then
