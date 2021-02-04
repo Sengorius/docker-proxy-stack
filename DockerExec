@@ -41,6 +41,21 @@ function print_info() {
     fi
 }
 
+function print_warning() {
+    local MESSAGE=$1
+    local NEWLINE=$2
+
+    if [[ -z "$NEWLINE" ]]; then
+        NEWLINE=0
+    fi
+
+    echo -e "${COLOR_ORANGE}$MESSAGE${COLOR_WHITE}"
+
+    if [[ "1" == "$NEWLINE" ]]; then
+        echo
+    fi
+}
+
 
 ###
 ### How to install this script
@@ -427,8 +442,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
         # check the /certs directory
         if [[ ! -d "$CERTS_PATH" || ! -f "$CERTS_PATH/docker.test.key" ]]; then
-            print_error "The proxy is not ready to start, yet! Try 'DockerExec do init-certs' to fix this."
-            exit 1
+            print_warning "The proxy is not fully configured, yet! Try 'DockerExec init-certs' to fix this."
         fi
 
         # fetch parameters from .env file
