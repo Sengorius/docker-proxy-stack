@@ -150,6 +150,18 @@ if [[ ! -z "$PROXY_PATH" && ! -d "$PROXY_PATH" ]]; then
     exit 1
 fi
 
+# test existence of docker and docker-compose
+if [[ -z `which docker` ]]; then
+    print_error "There was no docker executable found on this machine. Did you install docker correctly?" 1
+    exit 1
+fi
+
+if [[ -z `which docker-compose` ]]; then
+    print_error "There was no docker-composer executable found on this machine. Did you install docker correctly?"
+    print_error "If you use a differen alias, please create one called 'docker-compose' for your user." 1
+    exit 1
+fi
+
 # remove the trailing slash
 PROXY_PATH=${PROXY_PATH%/}
 
