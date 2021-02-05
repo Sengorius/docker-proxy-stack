@@ -162,6 +162,10 @@ command -v docker-compose > /dev/null 2>&1 || {
     exit 1
 }
 
+# add environment variables for docker
+export COMPOSE_DOCKER_CLI_BUILD=0
+export DOCKER_BUILDKIT=0
+
 # remove the trailing slash
 PROXY_PATH=${PROXY_PATH%/}
 
