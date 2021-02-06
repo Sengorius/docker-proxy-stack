@@ -171,6 +171,7 @@ PROXY_PATH=${PROXY_PATH%/}
 
 # set some more defaults
 ENV_FILE=".env"
+PROXY_ENV_FILE="$PROXY_PATH/$ENV_FILE"
 CURRENT_DIR=`pwd`
 LINUX_HOSTS=/etc/hosts
 CERTS_PATH="$PROXY_PATH/certs"
@@ -523,7 +524,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # start the docker proxy db with bash
     elif [[ "db" == "$ACTION" ]]; then
-        DB_NAME=`grep "^DB_NAME=" "$ENV_FILE" | sed -e 's/^DB_NAME=//' | sed -e 's/[[:space:]]*$//'`
+        DB_NAME=`grep "^DB_NAME=" "$PROXY_ENV_FILE" | sed -e 's/^DB_NAME=//' | sed -e 's/[[:space:]]*$//'`
         RUNNING_APP=`docker ps -aq -f name="$DB_NAME" -f status="running"`
 
         if [[ ! -z "$RUNNING_APP" ]]; then
@@ -544,7 +545,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # start the docker proxy pg with bash
     elif [[ "pg" == "$ACTION" ]]; then
-        PG_NAME=`grep "^PG_NAME=" "$ENV_FILE" | sed -e 's/^PG_NAME=//' | sed -e 's/[[:space:]]*$//'`
+        PG_NAME=`grep "^PG_NAME=" "$PROXY_ENV_FILE" | sed -e 's/^PG_NAME=//' | sed -e 's/[[:space:]]*$//'`
         RUNNING_APP=`docker ps -aq -f name="$PG_NAME" -f status="running"`
 
         if [[ ! -z "$RUNNING_APP" ]]; then
