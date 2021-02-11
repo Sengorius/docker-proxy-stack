@@ -162,11 +162,16 @@ command -v docker-compose > /dev/null 2>&1 || {
     exit 1
 }
 
+# add environment variables for docker
+export COMPOSE_DOCKER_CLI_BUILD=0
+export DOCKER_BUILDKIT=0
+
 # remove the trailing slash
 PROXY_PATH=${PROXY_PATH%/}
 
 # set some more defaults
 ENV_FILE=".env"
+PROXY_ENV_FILE="$PROXY_PATH/$ENV_FILE"
 CURRENT_DIR=`pwd`
 LINUX_HOSTS=/etc/hosts
 CERTS_PATH="$PROXY_PATH/certs"
@@ -519,7 +524,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # start the docker proxy db with bash
     elif [[ "db" == "$ACTION" ]]; then
-        DB_NAME=`grep "^DB_NAME=" "$ENV_FILE" | sed -e 's/^DB_NAME=//' | sed -e 's/[[:space:]]*$//'`
+        DB_NAME=`grep "^DB_NAME=" "$PROXY_ENV_FILE" | sed -e 's/^DB_NAME=//' | sed -e 's/[[:space:]]*$//'`
         RUNNING_APP=`docker ps -aq -f name="$DB_NAME" -f status="running"`
 
         if [[ ! -z "$RUNNING_APP" ]]; then
@@ -540,7 +545,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # start the docker proxy pg with bash
     elif [[ "pg" == "$ACTION" ]]; then
-        PG_NAME=`grep "^PG_NAME=" "$ENV_FILE" | sed -e 's/^PG_NAME=//' | sed -e 's/[[:space:]]*$//'`
+        PG_NAME=`grep "^PG_NAME=" "$PROXY_ENV_FILE" | sed -e 's/^PG_NAME=//' | sed -e 's/[[:space:]]*$//'`
         RUNNING_APP=`docker ps -aq -f name="$PG_NAME" -f status="running"`
 
         if [[ ! -z "$RUNNING_APP" ]]; then
@@ -758,13 +763,16 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
     # shortcut to list all docker containers
     elif [[ "self-update" == "$ACTION" ]]; then
-        if [[ ! -d "$PROXY_PATH/.git" ]]; then
+        SCRIPT_PATH=`realpath "$0"`
+        BASE_DIR=`dirname "$SCRIPT_PATH"`
+
+        if [[ ! -d "$BASE_DIR/.git" ]]; then
             print_error "No .git directory was found in proxy directory. Did you clone or download?"
             print_error "If you downloaded this project, this command will not work. Please download the current archive." 1
             exit 1
         fi
 
-        cd "$PROXY_PATH"
+        cd "$BASE_DIR"
         git fetch --tags
 
         LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)

@@ -324,3 +324,8 @@ Although the Docker-Proxy-Stack is fully functional, there is a lot of potential
   - add common tasks
   - rewrite in Python
   - make functionality more discoverable
+- Windows
+  - make it all work on Windows
+  - use correct Docker Socket path
+  - make generating SSL certs work (use correct SSL cert path)
+  - make writing to /etc/hosts work
