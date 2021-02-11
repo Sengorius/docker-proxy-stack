@@ -763,13 +763,16 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
     # shortcut to list all docker containers
     elif [[ "self-update" == "$ACTION" ]]; then
-        if [[ ! -d "$PROXY_PATH/.git" ]]; then
+        SCRIPT_PATH=`realpath "$0"`
+        BASE_DIR=`dirname "$SCRIPT_PATH"`
+
+        if [[ ! -d "$BASE_DIR/.git" ]]; then
             print_error "No .git directory was found in proxy directory. Did you clone or download?"
             print_error "If you downloaded this project, this command will not work. Please download the current archive." 1
             exit 1
         fi
 
-        cd "$PROXY_PATH"
+        cd "$BASE_DIR"
         git fetch --tags
 
         LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
