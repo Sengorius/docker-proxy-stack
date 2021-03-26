@@ -1,8 +1,9 @@
-version: '3.5'
+version: '3.9'
 
 volumes:
     data-db:
     data-pg:
+    data-redis:
 
 services:
     proxy-nginx:
@@ -41,6 +42,18 @@ services:
             - "5432:5432"
         volumes:
             - data-pg:/var/lib/postgresql/data
+            - ${DATA_PATH}:/var/data
+
+    proxy-redis:
+        image: ${REDIS_IMAGE}
+        container_name: ${REDIS_NAME}
+        env_file: .env
+        restart: unless-stopped
+        command: --appendonly yes
+        ports:
+            - "${REDIS_PORT}:6379"
+        volumes:
+            - data-redis:/data
             - ${DATA_PATH}:/var/data
 
     proxy-pma:
