@@ -6,7 +6,7 @@ supports
 1. SSL (`https://`) for all local projects.
 1. descriptive names instead of `localhost`.
 1. running multiple projects at the same time
-    - sharing database containers (MySQL & PostgreSQL)
+    - sharing database containers (MySQL, PostgreSQL & Redis)
     - sharing certificates
     - sharing a mailcatcher
     - sharing a reverse proxy
