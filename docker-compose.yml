@@ -1,8 +1,9 @@
-version: '3.5'
+version: '3.9'
 
 volumes:
     data-db:
     data-pg:
+    data-redis:
 
 services:
     proxy-nginx:
@@ -27,7 +28,7 @@ services:
         restart: unless-stopped
         command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --sql_mode="STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"
         ports:
-            - "3306:3306"
+            - "${MYSQL_PORT}:3306"
         volumes:
             - data-db:/var/lib/mysql
             - ${DATA_PATH}:/var/data
@@ -38,9 +39,21 @@ services:
         env_file: .env
         restart: unless-stopped
         ports:
-            - "5432:5432"
+            - "${POSTGRES_PORT}:5432"
         volumes:
             - data-pg:/var/lib/postgresql/data
+            - ${DATA_PATH}:/var/data
+
+    proxy-redis:
+        image: ${REDIS_IMAGE}
+        container_name: ${REDIS_NAME}
+        env_file: .env
+        restart: unless-stopped
+        command: --appendonly yes
+        ports:
+            - "${REDIS_PORT}:6379"
+        volumes:
+            - data-redis:/data
             - ${DATA_PATH}:/var/data
 
     proxy-pma:
