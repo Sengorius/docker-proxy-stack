@@ -73,6 +73,12 @@ certificates in the `certs` folder, containing a `rootCA.crt`. Any info you type
 into the prompts is optional. In the next step, you have to register this self-signed
 certificate to your default browser.
 
+#### Using the Proxy-Stack on MacOS
+
+The library `realpath` is mandatory for `DockerExec` to work with local files. You have
+to install the `coreutils` to get that library. With brew installed, use 
+`brew install coreutils`.
+
 #### Install the rootCA to Firefox
 
 Go to `Settings -> Security` and scroll to the bottom, then click `Show Certificates`.  
@@ -94,6 +100,9 @@ containers in this stack have to register in.
 Use `docker network create --attachable "{YOUR_NETWORK_NAME}"` once to create
 the network. Don't change it afterwards. You can now test if the network was created with  
 `docker network ls`.
+
+Don't forget to add `127.0.0.1 docker.test` to your `/etc/hosts` (`sudo` necessary) file,
+which docker will use to redirect the requests on your local machine.
 
 
 ## How to add Projects to the Docker Proxy Network
