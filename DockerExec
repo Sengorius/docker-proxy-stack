@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ###
 ### Colors
@@ -236,21 +236,27 @@ function print_hosts() {
     local COMPOSE=$1
     local HOSTS=`grep "VIRTUAL_HOST:" "$COMPOSE" | sed -e 's/VIRTUAL_HOST://' | sed -e 's/[[:space:]]*$//' | sed -e 's/^[[:space:]]*//' | sed 's/, /,/' | sed 's/,/\n/'`
 
-    # sudo must be given
-    sudo true
-
-    print_info "Folgende Hosts werden gestartet:"
+    print_info "Following hosts have been booted:"
     echo "$HOSTS" | while read -r line; do
         if [[ ! -z "$line" ]]; then
-            # append host to hosts file, if not yet included
-            HOSTS_HAS_FILE=`grep "$line" "$LINUX_HOSTS"`
-            if [[ -f "$LINUX_HOSTS" && -z "$HOSTS_HAS_FILE" ]]; then
-                local STUB=`echo "127.0.0.1    $line" | sudo tee -a "$LINUX_HOSTS"`
-            fi
-
+            publish_single_entry_hosts_file "$line"
             echo "  https://$line"
         fi
     done
+}
+
+# append host to hosts file, if not yet included
+function publish_single_entry_hosts_file() {
+    # sudo must be given
+    sudo true
+
+    local ENTRY=$1
+    local HOSTS_HAS_FILE=`egrep -i "^127.0.0.1\s+$ENTRY" "$LINUX_HOSTS"`
+
+    if [[ -f "$LINUX_HOSTS" && -z "$HOSTS_HAS_FILE" ]]; then
+        echo "127.0.0.1    $ENTRY" | sudo tee -a "$LINUX_HOSTS" > /dev/null 2>&1
+        print_info "'127.0.0.1 $ENTRY' was added to your hosts file"
+    fi
 }
 
 # offer a function that tries to find the current -app container name
@@ -473,6 +479,9 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             print_info "Network $NETWORK_NAME was created successfully!"
         fi
 
+        # ensure the docker.test domain is located in hosts file
+        publish_single_entry_hosts_file "docker.test"
+
         # reset the temporary hosts
         if [[ -f "$TEMP_HOSTS_PATH" ]]; then
             rm "$TEMP_HOSTS_PATH"
@@ -647,7 +656,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         docker rmi -f $(docker images | grep "<none>" | awk "{print \$3}")
 
     # test, if a container is running
-    elif [[ "watch-running" == "$ACTION" ]]; then
+    elif [[ "watch-running" == "$ACTION" || "watchrunning" == "$ACTION" || "watch" == "$ACTION" ]]; then
         CONTAINER="${PARAMETERS[0]}"
 
         if [[ -z "$CONTAINER" ]]; then
@@ -704,7 +713,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
     # see https://two-oes.medium.com/working-with-openssl-and-dns-alternative-names-367f06a23841
     # see https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
     # to test a .crt file, try: openssl x509 -in certs/docker.test.crt -text -noout
-    elif [[ "init-certs" == "$ACTION" ]]; then
+    elif [[ "init-certs" == "$ACTION" || "initcerts" == "$ACTION" ]]; then
         command -v openssl > /dev/null 2>&1 || {
             print_error "Openssl seems not to be installed on this machine. But it is necessary to generate keys..." 1
             exit 1
@@ -762,7 +771,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         print_info "Now register the rootCA.crt in your browser." 1
 
     # shortcut to list all docker containers
-    elif [[ "self-update" == "$ACTION" ]]; then
+    elif [[ "self-update" == "$ACTION" || "selfupdate" == "$ACTION" ]]; then
         SCRIPT_PATH=`realpath "$0"`
         BASE_DIR=`dirname "$SCRIPT_PATH"`
 

@@ -65,15 +65,21 @@ the instructions, close and reopen a shell to make it work.
 If the shell script was installed correctly, type `DockerExec help` to get a list of
 tasks, the `DockerExec` can do for you.
 
-As root user (or with `sudo`), edit your `/etc/hosts` file and add the line:  
-```
-127.0.0.1 docker.test
-```
+You need to belong to the `sudo` group, as `DockerExec` has to update the `/etc/hosts`
+file, in order to match the network for your projects.
 
-Run `DockerExec create-cert` and follow the prompts. This should create multiple
+Run `DockerExec init-certs` and follow the prompts. This should create multiple
 certificates in the `certs` folder, containing a `rootCA.crt`. Any info you type
 into the prompts is optional. In the next step, you have to register this self-signed
 certificate to your default browser.
+
+#### Using the Proxy-Stack on MacOS
+
+The library `realpath` is mandatory for `DockerExec` to work with local files. You have
+to install the `coreutils` to get that library. With Homebrew installed, use 
+`brew install coreutils`.
+
+Read further on [how to install Homebrew](https://brew.sh/).
 
 #### Install the rootCA to Firefox
 
@@ -96,6 +102,9 @@ containers in this stack have to register in.
 Use `docker network create --attachable "{YOUR_NETWORK_NAME}"` once to create
 the network. Don't change it afterwards. You can now test if the network was created with  
 `docker network ls`.
+
+Don't forget to add `127.0.0.1 docker.test` to your `/etc/hosts` (`sudo` necessary) file,
+which docker will use to redirect the requests on your local machine.
 
 
 ## How to add Projects to the Docker Proxy Network
