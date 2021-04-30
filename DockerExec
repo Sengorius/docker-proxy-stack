@@ -656,7 +656,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         docker rmi -f $(docker images | grep "<none>" | awk "{print \$3}")
 
     # test, if a container is running
-    elif [[ "watch-running" == "$ACTION" ]]; then
+    elif [[ "watch-running" == "$ACTION" || "watchrunning" == "$ACTION" || "watch" == "$ACTION" ]]; then
         CONTAINER="${PARAMETERS[0]}"
 
         if [[ -z "$CONTAINER" ]]; then
@@ -713,7 +713,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
     # see https://two-oes.medium.com/working-with-openssl-and-dns-alternative-names-367f06a23841
     # see https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
     # to test a .crt file, try: openssl x509 -in certs/docker.test.crt -text -noout
-    elif [[ "init-certs" == "$ACTION" ]]; then
+    elif [[ "init-certs" == "$ACTION" || "initcerts" == "$ACTION" ]]; then
         command -v openssl > /dev/null 2>&1 || {
             print_error "Openssl seems not to be installed on this machine. But it is necessary to generate keys..." 1
             exit 1
@@ -771,7 +771,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         print_info "Now register the rootCA.crt in your browser." 1
 
     # shortcut to list all docker containers
-    elif [[ "self-update" == "$ACTION" ]]; then
+    elif [[ "self-update" == "$ACTION" || "selfupdate" == "$ACTION" ]]; then
         SCRIPT_PATH=`realpath "$0"`
         BASE_DIR=`dirname "$SCRIPT_PATH"`
 
