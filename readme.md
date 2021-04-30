@@ -76,8 +76,10 @@ certificate to your default browser.
 #### Using the Proxy-Stack on MacOS
 
 The library `realpath` is mandatory for `DockerExec` to work with local files. You have
-to install the `coreutils` to get that library. With brew installed, use 
+to install the `coreutils` to get that library. With Homebrew installed, use 
 `brew install coreutils`.
+
+Read further on [how to install Homebrew](https://brew.sh/).
 
 #### Install the rootCA to Firefox
 
