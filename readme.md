@@ -68,7 +68,7 @@ tasks, the `DockerExec` can do for you.
 You need to belong to the `sudo` group, as `DockerExec` has to update the `/etc/hosts`
 file, in order to match the network for your projects.
 
-Run `DockerExec create-cert` and follow the prompts. This should create multiple
+Run `DockerExec init-certs` and follow the prompts. This should create multiple
 certificates in the `certs` folder, containing a `rootCA.crt`. Any info you type
 into the prompts is optional. In the next step, you have to register this self-signed
 certificate to your default browser.
