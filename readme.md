@@ -123,9 +123,14 @@ proxy network
             - 80
             - 443
         volumes:
-            - .:/var/www/html environment: # choose a docker.test subdomain
-        VIRTUAL_HOST: my-project.docker.test VIRTUAL_PORT: 443 VIRTUAL_PROTO:
-        https ``` `my-project` should be your project name.
+            - .:/var/www/html 
+        environment: 
+            # choose a docker.test subdomain
+            VIRTUAL_HOST: my-project.docker.test
+            VIRTUAL_PORT: 443
+            VIRTUAL_PROTO: https
+   ```
+   `my-project` should be your project name.
 1. Specify the Docker network you created above in `docker-compose.yml`:
     ```yaml
     services:
