@@ -13,6 +13,8 @@ tags
 !/data/.gitignore
 /dhparam/*
 !/dhparam/.gitignore
+/vhost.d/*
+!/vhost.d/.gitignore
 
 ### certificates
 /certs/*

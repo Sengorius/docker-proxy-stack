@@ -18,6 +18,7 @@ services:
             - ./certs:/etc/nginx/certs
             - ./conf:/etc/nginx/conf.d
             - ./dhparam:/etc/nginx/dhparam
+            - ./vhost.d:/etc/nginx/vhost.d
             - ${SOCK_PATH}:/tmp/docker.sock:ro
             - ${DATA_PATH}:/var/data
 
