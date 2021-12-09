@@ -138,8 +138,8 @@ proxy network
    
     networks:
         default:
-            external:
-                name: ${NETWORK_NAME}
+            external: true
+            name: ${NETWORK_NAME}
     ```
 1. You also need a `.env` file to specify at least `CON_PREFIX`
 1. Add a hostname specific to your project: `VIRTUAL_HOST` has to be added to you hosts file.  
@@ -293,8 +293,8 @@ services:
 
 networks:
     default:
-        external:
-            name: ${NETWORK}
+        external: true
+        name: ${NETWORK}
 ```
 
 ```
