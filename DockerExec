@@ -611,8 +611,8 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
                 echo
                 echo "networks:"
                 echo "    default:"
-                echo "        external:"
-                echo "            name: \${NETWORK}"
+                echo "        external: true"
+                echo "        name: \${NETWORK}"
                 echo
             } >> docker-compose.proxy.yaml
 
