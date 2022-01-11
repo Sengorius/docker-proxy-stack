@@ -4,6 +4,7 @@ tags
 # environment files
 .env
 .current-hosts
+.last-update
 
 # nginx conf
 /conf/default.conf

@@ -131,6 +131,8 @@ STATUS_FILE_NAME="docker_current.txt"
 TEMP_HOSTS_FILE=".current-hosts"
 TEMP_HOSTS_PATH="$PROXY_PATH/$TEMP_HOSTS_FILE"
 
+check_for_updates
+
 # watch the environment
 if [[ "dev" == "$ENVIRONMENT" ]]; then
     # test project files
@@ -508,27 +510,9 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
     # shortcut to list all docker containers
     elif [[ "self-update" == "$ACTION" || "selfupdate" == "$ACTION" ]]; then
-        SCRIPT_PATH=`realpath "$0"`
-        BASE_DIR=`dirname "$SCRIPT_PATH"`
-
-        if [[ ! -d "$BASE_DIR/.git" ]]; then
-            print_error "No .git directory was found in proxy directory. Did you clone or download?"
-            print_error "If you downloaded this project, this command will not work. Please download the current archive." 1
-            exit 1
-        fi
-
-        cd "$BASE_DIR"
-        git fetch --tags
-
-        LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-        if [[ "0" != "$?" ]]; then
-            cd "$CURRENT_DIR"
-            print_error "Failed to check out the latest tag. Sorry..." 1
-            exit 1
-        fi
-
+        # get_latest_git_tag will cd us into the $BASE_DIR directory
+        LATEST_TAG=`get_latest_git_tag`
         git checkout --quiet $LATEST_TAG
-        cd "$CURRENT_DIR"
         print_info "Updated the Docker Proxy Stack. Checked out version $LATEST_TAG." 1
 
     # shortcut to list all docker containers
