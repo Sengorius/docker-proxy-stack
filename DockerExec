@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_PATH=`realpath "$0"`
+export SCRIPT_PATH=`realpath "$0"`
 export BASE_DIR=`dirname "$SCRIPT_PATH"`
 export SRC_DIR="$BASE_DIR/src"
 
@@ -119,17 +119,17 @@ export COMPOSE_DOCKER_CLI_BUILD=0
 export DOCKER_BUILDKIT=0
 
 # remove the trailing slash
-PROXY_PATH=${PROXY_PATH%/}
+export PROXY_PATH=${PROXY_PATH%/}
 
 # set some more defaults
-ENV_FILE=".env"
-PROXY_ENV_FILE="$PROXY_PATH/$ENV_FILE"
-CURRENT_DIR=`pwd`
-LINUX_HOSTS=/etc/hosts
-CERTS_PATH="$PROXY_PATH/certs"
-STATUS_FILE_NAME="docker_current.txt"
-TEMP_HOSTS_FILE=".current-hosts"
-TEMP_HOSTS_PATH="$PROXY_PATH/$TEMP_HOSTS_FILE"
+export ENV_FILE=".env"
+export PROXY_ENV_FILE="$PROXY_PATH/$ENV_FILE"
+export CURRENT_DIR=`pwd`
+export LINUX_HOSTS=/etc/hosts
+export CERTS_PATH="$PROXY_PATH/certs"
+export STATUS_FILE_NAME="docker_current.txt"
+export TEMP_HOSTS_FILE=".current-hosts"
+export TEMP_HOSTS_PATH="$PROXY_PATH/$TEMP_HOSTS_FILE"
 
 check_for_updates
 
