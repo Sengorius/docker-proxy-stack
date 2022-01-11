@@ -17,13 +17,11 @@ function print_hosts() {
 
 # append host to hosts file, if not yet included
 function publish_single_entry_hosts_file() {
-    # sudo must be given
-    sudo true
-
     local ENTRY=$1
     local HOSTS_HAS_FILE=`egrep -i "^127.0.0.1\s+$ENTRY" "$LINUX_HOSTS"`
 
     if [[ -f "$LINUX_HOSTS" && -z "$HOSTS_HAS_FILE" ]]; then
+        sudo true # sudo must be given
         echo "127.0.0.1    $ENTRY" | sudo tee -a "$LINUX_HOSTS" > /dev/null 2>&1
         print_info "'127.0.0.1 $ENTRY' was added to your hosts file"
     fi
