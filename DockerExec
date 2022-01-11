@@ -390,6 +390,17 @@ function publish_host_files() {
     print_info "The /etc/hosts file of $COUNTER proxy containers was updated successfully!"
 }
 
+# test if the proxy setup was already initialized
+function is_proxy_running() {
+    STATUS=`docker ps -a --format "{{ .Names }}" -f status="running" -f name="proxy-nginx"`
+
+    if [[ -z "$STATUS" ]]; then
+        echo 0
+    else
+        echo 1
+    fi
+}
+
 # shortcut to get a value from user (stdin) or return a default value
 function match_answer_or_default() {
     local QUESTION=$1
@@ -511,6 +522,12 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         COMPOSE=`test_files "$ENV_FILE" "$COMPOSE"`
         if [[ "0" != "$?" ]]; then
             echo $COMPOSE
+            exit 1
+        fi
+
+        # test, if the proxy is already running
+        if [[ 0 == `is_proxy_running` ]]; then
+            print_error "The proxy is not running, yet. Initialize with 'DockerExec proxy init'" 1
             exit 1
         fi
 
