@@ -223,11 +223,13 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # stop and remove the proxy
     elif [[ "finish" == "$ACTION" ]]; then
-        # go to proxy dir
-        cd "$PROXY_PATH"
-
-        docker-compose stop
-        docker-compose rm -f
+        if [[ ! -z `docker ps -a --format "{{ .Names }}" -f name="proxy-"` ]]; then
+            cd "$PROXY_PATH"
+            docker-compose stop
+            docker-compose rm -f
+        else
+            print_info "The Proxy is not started. No containers to stop."
+        fi
 
         # remove the temporary hosts
         if [[ -f "$TEMP_HOSTS_PATH" ]]; then
@@ -375,8 +377,13 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 elif [[ "do" == "$ENVIRONMENT" ]]; then
     # stop, then remove all containers
     if [[ "finish" == "$ACTION" ]]; then
-        docker stop $(docker ps -aq)
-        docker rm -f $(docker ps -aq)
+        REMOVABLE_CONTAINERS=$(docker ps -aq)
+        if [[ ! -z "$REMOVABLE_CONTAINERS" ]]; then
+            docker stop $REMOVABLE_CONTAINERS
+            docker rm -f $REMOVABLE_CONTAINERS
+        else
+            print_info "No containers to stop."
+        fi
 
         if [[ -f "$TEMP_HOSTS_PATH" ]]; then
             rm "$TEMP_HOSTS_PATH"
@@ -384,13 +391,20 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
     # remove all stopped containers
     elif [[ "remove" == "$ACTION" ]]; then
-        docker rm -f $(docker ps -aq -f "status=exited")
+        EXITED_CONTAINERS=$(docker ps -aq -f status="exited")
+        if [[ ! -z "$EXITED_CONTAINERS" ]]; then
+            docker rm -f $EXITED_CONTAINERS
+        else
+            print_info "No containers to remove."
+        fi
 
     # remove all images that are no more in use
     elif [[ "cleanup" == "$ACTION" ]]; then
         CLEANABLE_CONTAINERS=$(docker images | grep "<none>" | awk "{print \$3}")
         if [[ ! -z "$CLEANABLE_CONTAINERS" ]]; then
             docker rmi -f "$CLEANABLE_CONTAINERS"
+        else
+            print_info "No unfinished build layers to remove."
         fi
 
     # test, if a container is running
