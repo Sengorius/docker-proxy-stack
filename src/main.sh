@@ -27,14 +27,34 @@ function publish_single_entry_hosts_file() {
     fi
 }
 
+# get the defined $_CONTAINER_SUFFIXES from proxy .env file or return a default
+function get_container_suffixes() {
+    local TYPE=$1
+    local SUFFIXES=`grep "^${TYPE}_CONTAINER_SUFFIXES=" "$PROXY_ENV_FILE" | sed -e "s/^${TYPE}_CONTAINER_SUFFIXES=//" | sed -e 's/[[:space:]]*$//'`
+
+    if [[ -z "$SUFFIXES" ]]; then
+        if [[ "web" == "$TYPE" ]]; then
+            SUFFIXES="web"
+        elif [[ "app" == "$TYPE" ]]; then
+            SUFFIXES="app|php"
+        else
+            print_error "Unknown container suffix type '$TYPE'!" 1
+            exit 1
+        fi
+    fi
+
+    echo "$SUFFIXES"
+}
+
 # offer a function that tries to find the current -app container name
 function get_container_names() {
     local ENV_FILE=$1
     local APP_PREFIX=`grep "^CON_PREFIX=" "$ENV_FILE" | sed -e 's/^CON_PREFIX=//' | sed -e 's/[[:space:]]*$//'`
     local APP_NAME=`grep "^CON_NAME=" "$ENV_FILE" | sed -e 's/^CON_NAME=//' | sed -e 's/[[:space:]]*$//'`
+    local APP_CONTAINER_SUFFIXES=`get_container_suffixes "APP"`
 
     if [[ ! -z "$APP_PREFIX" ]]; then
-        local RUNNING_APPS=`docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)(app|php)$" -f status="running"`
+        local RUNNING_APPS=`docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)(${APP_CONTAINER_SUFFIXES})$" -f status="running"`
         echo "$RUNNING_APPS"
     elif [[ ! -z "$APP_NAME" ]]; then
         echo "$APP_NAME"
@@ -50,9 +70,10 @@ function get_nginx_names() {
     local ENV_FILE=$1
     local APP_PREFIX=`grep "^CON_PREFIX=" "$ENV_FILE" | sed -e 's/^CON_PREFIX=//' | sed -e 's/[[:space:]]*$//'`
     local APP_NAME=`grep "^CON_NAME=" "$ENV_FILE" | sed -e 's/^CON_NAME=//' | sed -e 's/[[:space:]]*$//'`
+    local WEB_CONTAINER_SUFFIXES=`get_container_suffixes "WEB"`
 
     if [[ ! -z "$APP_PREFIX" ]]; then
-        local RUNNING_APPS=`docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)web$" -f status="running"`
+        local RUNNING_APPS=`docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)(${WEB_CONTAINER_SUFFIXES})$" -f status="running"`
         echo "$RUNNING_APPS"
     elif [[ ! -z "$APP_NAME" ]]; then
         echo "$APP_NAME"
@@ -137,22 +158,33 @@ function update_host_files() {
         done
 
         if [[ ! -z "$SHALL_BE_PUBLISHED" ]]; then
-            publish_host_files
+            local APP_CONTAINER_SUFFIXES=`get_container_suffixes "APP"`
+            local WEB_CONTAINER_SUFFIXES=`get_container_suffixes "WEB"`
+            publish_host_files "${APP_CONTAINER_SUFFIXES}|${WEB_CONTAINER_SUFFIXES}"
         fi
     fi
 }
 
 # update the /etc/hosts file in any proxy related container with data from .current-hosts file
 function publish_host_files() {
-    local TARGET_CONTAINERS=`docker ps -a --format "{{ .Names }}" -f status="running" -f name="-web" -f name="_web" -f name="-php" -f name="_php" -f name="-app" -f name="_app"`
+    local HOST_CONTAINER_SUFFIXES=($(echo $1 | tr "|" "\n"))
+    local FORMATTED_CONTAINERS=""
+
+    for NEXT_SUFFIX in ${HOST_CONTAINER_SUFFIXES[@]}; do
+        FORMATTED_CONTAINERS="${FORMATTED_CONTAINERS} -f name=-${NEXT_SUFFIX} -f name=_${NEXT_SUFFIX}"
+    done
+
+    local TARGET_CONTAINERS=`docker ps -a --format "{{ .Names }}" -f status='running'${FORMATTED_CONTAINERS}`
     local COUNTER=0
 
     while read -r CURRENT; do
-        CURRENT_CONTENT=`docker exec $CURRENT /bin/sh -c "cat /etc/hosts"`
-        CURRENT_CONTENT=`echo "$CURRENT_CONTENT" | sed '/^### DockerExec hosts file update ###/,$d'`
-        UPDATED_HOSTS="$CURRENT_CONTENT\n### DockerExec hosts file update ###\n"`cat $TEMP_HOSTS_PATH`
-        docker exec $CURRENT /bin/sh -c "echo '$UPDATED_HOSTS' > /etc/hosts"
-        COUNTER=$((COUNTER+1))
+        if [[ ! -z "$CURRENT" ]]; then
+            CURRENT_CONTENT=`docker exec $CURRENT /bin/sh -c "cat /etc/hosts"`
+            CURRENT_CONTENT=`echo "$CURRENT_CONTENT" | sed '/^### DockerExec hosts file update ###/,$d'`
+            UPDATED_HOSTS="$CURRENT_CONTENT\n### DockerExec hosts file update ###\n"`cat $TEMP_HOSTS_PATH`
+            docker exec $CURRENT /bin/sh -c "echo '$UPDATED_HOSTS' > /etc/hosts"
+            COUNTER=$((COUNTER+1))
+        fi
     done <<< "$TARGET_CONTAINERS"
 
     print_info "The /etc/hosts file of $COUNTER proxy containers was updated successfully!"
