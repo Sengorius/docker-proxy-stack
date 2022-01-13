@@ -8,6 +8,7 @@ export SRC_DIR="$BASE_DIR/src"
 . "$SRC_DIR/warnings.sh"
 . "$SRC_DIR/helpers.sh"
 . "$SRC_DIR/security.sh"
+. "$SRC_DIR/generate.sh"
 . "$SRC_DIR/main.sh"
 
 
@@ -326,53 +327,12 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         fi
 
         if [[ ! ( -f "$COMPOSE.yml" || -f "$COMPOSE.yaml" ) ]]; then
-            {
-                echo "version: '3.5'"
-                echo
-                echo "services:"
-                echo "    web:"
-                echo "       image: \${WEB_IMAGE}"
-                echo "       container_name: \${CON_PREFIX}-web"
-                echo "       env_file: .env"
-                echo "       volumes:"
-                echo "           - .:/var/www/html"
-                echo "       expose:"
-                echo "           - 80"
-                echo "           - 443"
-                echo "       environment:"
-                echo "           VIRTUAL_HOST: ${DOMAIN_PREFIX}.docker.test"
-                echo "           VIRTUAL_PORT: 443"
-                echo "           VIRTUAL_PROTO: https"
-                echo "       links:"
-                echo "           - php"
-                echo
-                echo "    php:"
-                echo "        image: \${PHP_IMAGE}"
-                echo "        container_name: \${CON_PREFIX}-app"
-                echo "        env_file: .env"
-                echo "        volumes:"
-                echo "            - .:/var/www/html"
-                echo
-                echo "networks:"
-                echo "    default:"
-                echo "        external: true"
-                echo "        name: \${NETWORK}"
-                echo
-            } >> docker-compose.proxy.yaml
-
+            generate_docker_compose_project "docker-compose.proxy.yaml" "$DOMAIN_PREFIX"
             print_info "A docker-compose.proxy.yaml was added."
         fi
 
         if [[ ! -f "$ENV_FILE" ]]; then
-            {
-                echo "# docker-compose configuration"
-                echo "CON_PREFIX=${DOMAIN_PREFIX}"
-                echo "PHP_IMAGE=php:fpm"
-                echo "WEB_IMAGE=nginx/nginx:latest"
-                echo "NETWORK=proxy-network"
-                echo
-            } >> .env
-
+            generate_env_file_project ".env" "$DOMAIN_PREFIX"
             print_info "A .env was added."
         fi
 
