@@ -196,13 +196,13 @@ function update_host_files_with_proxy() {
 # update the /etc/hosts file in any proxy related container with data from .current-hosts file
 function publish_host_files() {
     local HOST_CONTAINER_SUFFIXES=($(echo $1 | tr "|" "\n"))
-    local FORMATTED_CONTAINERS=""
+    local FORMATTED_CONTAINERS=
 
     for NEXT_SUFFIX in ${HOST_CONTAINER_SUFFIXES[@]}; do
-        FORMATTED_CONTAINERS="${FORMATTED_CONTAINERS} -f name=-${NEXT_SUFFIX} -f name=_${NEXT_SUFFIX}"
+        FORMATTED_CONTAINERS=${FORMATTED_CONTAINERS}\ -f\ name="-${NEXT_SUFFIX}"\ -f\ name="_${NEXT_SUFFIX}"
     done
 
-    local TARGET_CONTAINERS=`docker ps -a --format "{{ .Names }}" -f status='running'${FORMATTED_CONTAINERS}`
+    local TARGET_CONTAINERS=`docker ps -a --format "{{ .Names }}" -f status="running"${FORMATTED_CONTAINERS}`
     local COUNTER=0
 
     while read -r CURRENT; do
