@@ -62,14 +62,14 @@ function get_current_git_tag() {
 
         # if the repository is situated on a branch
         if [[ ! -z `echo $LATEST_LOG | grep "HEAD -> "` ]]; then
-            local CURRENT_BRANCH=`echo $LATEST_LOG | grep "HEAD -> " | sed -e 's/.*HEAD -> //' | sed -e 's/).*//'`
+            local CURRENT_BRANCH=`echo $LATEST_LOG | grep "HEAD -> " | sed -e 's/.*HEAD -> //' | sed -e 's/).*//' | sed -e 's/,.*//'`
             echo $CURRENT_BRANCH
             echo "BRANCH"
 
         # else a tag should be checked out
         elif [[ ! -z `echo $LATEST_LOG | grep "HEAD, tag: "` ]]; then
-            local CURRENT_TAG=`echo $LATEST_LOG | grep "HEAD, tag: " | sed -e 's/.*HEAD, tag: //' | sed -e 's/).*//'`
-            echo CURRENT_TAG
+            local CURRENT_TAG=`echo $LATEST_LOG | grep "HEAD, tag: " | sed -e 's/.*HEAD, tag: //' | sed -e 's/).*//' | sed -e 's/,.*//'`
+            echo $CURRENT_TAG
             echo "TAG"
         fi
     else
