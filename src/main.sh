@@ -165,6 +165,24 @@ function update_host_files() {
     fi
 }
 
+# update the hosts file with running proxy containers
+function update_host_files_with_proxy() {
+    local CON_NAMES=(`docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-'`)
+
+    if [[ 0 != ${#CON_NAMES[@]} ]]; then
+        for CON in "${CON_NAMES[@]}"; do
+            local WEB_IP=`docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' $CON`
+            local WEB_HOST=`docker inspect --format '{{ .Config.Env }}' $CON | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//'`
+            local WEB_HASH=`docker inspect --format '{{ .Config.Hostname }}' $CON`
+
+            # add the IP => HOST to the temporary file
+            if [[ ! -z "$WEB_IP" && -z `grep "$WEB_IP" "$TEMP_HOSTS_PATH"` ]] && [[ ! -z "$WEB_HOST" || ! -z "$WEB_HASH" ]]; then
+                echo -e "$WEB_IP\t\t$WEB_HASH $WEB_HOST" >> "$TEMP_HOSTS_PATH"
+            fi
+        done
+    fi
+}
+
 # update the /etc/hosts file in any proxy related container with data from .current-hosts file
 function publish_host_files() {
     local HOST_CONTAINER_SUFFIXES=($(echo $1 | tr "|" "\n"))

@@ -198,12 +198,10 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         fi
 
         # fetch parameters from .env file
-        PROXY_NAME=`grep "^PROXY_NAME=" "$ENV_FILE" | sed -e 's/^PROXY_NAME=//' | sed -e 's/[[:space:]]*$//'`
         NETWORK_NAME=`grep "^NETWORK_NAME=" "$ENV_FILE" | sed -e 's/^NETWORK_NAME=//' | sed -e 's/[[:space:]]*$//'`
 
         # first, test if the network exists and create, if not
-        NETWORK_EXISTS=`docker network ls | grep "$NETWORK_NAME"`
-        if [[ -z "$NETWORK_EXISTS" ]]; then
+        if [[ -z `docker network ls | grep "$NETWORK_NAME"` ]]; then
             docker network create --attachable "$NETWORK_NAME"
             print_info "Network $NETWORK_NAME was created successfully!"
         fi
@@ -218,8 +216,17 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         touch "$TEMP_HOSTS_PATH"
 
         # print out all found hosts and start compose
+        docker-compose up -d
         print_hosts "$COMPOSE"
-        docker-compose up
+
+        # add all proxy containers (with there IP and hostname) to current hosts file
+        update_host_files_with_proxy
+
+        # attach to the logs, if configured
+        ATTACH_TO_COMPOSE_LOGS=`grep "^ATTACH_TO_COMPOSE_LOGS=" "$ENV_FILE" | sed -e 's/^ATTACH_TO_COMPOSE_LOGS=//' | sed -e 's/[[:space:]]*$//'`
+        if [[ -z "$ATTACH_TO_COMPOSE_LOGS" || "1" == "$ATTACH_TO_COMPOSE_LOGS" ]]; then
+            docker-compose logs -f
+        fi
 
     # stop and remove the proxy
     elif [[ "finish" == "$ACTION" ]]; then
