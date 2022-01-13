@@ -93,7 +93,7 @@ function update_host_files() {
         HOST_ACTION="append"
     fi
 
-    if [[ 0 != ${#WEB_CON_NAMES[@]} && 0 != ${#APP_CON_NAMES[@]} ]]; then
+    if [[ 0 != ${#WEB_CON_NAMES[@]} || 0 != ${#APP_CON_NAMES[@]} ]]; then
         SHALL_BE_PUBLISHED=
 
         for WEB_CON in "${WEB_CON_NAMES[@]}"; do
