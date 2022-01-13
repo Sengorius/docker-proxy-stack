@@ -309,6 +309,7 @@ CON_PREFIX=project # prefix name for the running docker container
 PHP_IMAGE={$CONTAINER_REGISTRY}/symfony/flex/php:7.4-fpm-dev
 WEB_IMAGE={$CONTAINER_REGISTRY}/symfony/flex/nginx:latest
 NETWORK=nginx-proxy
+START_CONTAINER=project-app
 
 ### specific to your project
 # MySQL configuration
@@ -326,20 +327,9 @@ POSTGRES_DB=my_project_db
 POSTGRES_PASSWORD=root
 ```
 
-## ToDos
+These files can be created within any current directory with the `DockerExec proxy generate ${project-name}` command.
+See `DockerExec help` for better usage info.
 
-Although the Docker-Proxy-Stack is fully functional, there is a lot of potential for further development.
-
-- documentation
-  - add the correct container registry in the `.env` code snippet
-  - try all steps on a fresh system and verify the instructions
-  - add screenshots
-- DockerExec
-  - add common tasks
-  - rewrite in Python
-  - make functionality more discoverable
-- Windows
-  - make it all work on Windows
-  - use correct Docker Socket path
-  - make generating SSL certs work (use correct SSL cert path)
-  - make writing to /etc/hosts work
+Use the `START_CONTAINER` variable to define the container, that will be allocated with `docker exec -it` at the end
+of a `DockerExec (dev|prod|proxy) start` command. If `START_CONTAINER=none` is set, the `docker exec` will be
+omitted. If not defined, it falls back to search for the first container with `-app` suffix.

@@ -50,6 +50,7 @@ function generate_env_file_project() {
         echo "PHP_IMAGE=php:fpm"
         echo "WEB_IMAGE=nginx/nginx:latest"
         echo "NETWORK=proxy-network"
+        echo "START_CONTAINER=${DOMAIN_PREFIX}-app"
         echo
     } > "$FILE_PATH"
 }

@@ -93,12 +93,22 @@ function compose_run() {
 
     if [[ ! -z "$ENV_FILE" ]]; then
         update_host_files "$ENV_FILE"
-        local CON_NAMES=(`get_container_names "$ENV_FILE"`)
+        local START_CONTAINER=`grep "^START_CONTAINER=" "$ENV_FILE" | sed -e 's/^START_CONTAINER=//' | sed -e 's/[[:space:]]*$//'`
 
-        if [[ 0 != ${#CON_NAMES[@]} ]]; then
-            # retry sh, if bash is not found
-            docker exec -it "${CON_NAMES[0]}" bash || \
-            docker exec -it "${CON_NAMES[0]}" sh
+        if [[ ! -z "$START_CONTAINER" ]]; then
+            if [[ "none" != "$START_CONTAINER" ]]; then
+                # retry sh, if bash is not found
+                docker exec -it "${START_CONTAINER}" bash || \
+                docker exec -it "${START_CONTAINER}" sh
+            fi
+        else
+            local CON_NAMES=(`get_container_names "$ENV_FILE"`)
+
+            if [[ 0 != ${#CON_NAMES[@]} ]]; then
+                # retry sh, if bash is not found
+                docker exec -it "${CON_NAMES[0]}" bash || \
+                docker exec -it "${CON_NAMES[0]}" sh
+            fi
         fi
     fi
 }
