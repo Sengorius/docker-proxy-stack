@@ -36,8 +36,8 @@ function generate_openssl_certs() {
         -out "$CERTS_PATH/rootCA.crt"
 
     # create a certificate for docker.test
-    openssl genrsa -out "$CERTS_PATH/docker.test.key" $RSA_KEY_LENGTH
-    openssl req -new -sha256 \
+    ${RSA_COMMAND} genrsa -out "$CERTS_PATH/docker.test.key" $RSA_KEY_LENGTH
+    ${RSA_COMMAND} req -new -sha256 \
         -key "$CERTS_PATH/docker.test.key" \
         -subj "$CERT_SUBJECT" \
         -reqexts SAN \
