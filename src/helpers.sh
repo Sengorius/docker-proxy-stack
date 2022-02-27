@@ -7,10 +7,10 @@ function match_answer_or_default() {
 
     read -r -p "$QUESTION" ANSWER
 
-    if [[ ! -z "$ANSWER" ]]; then
-        echo $ANSWER
+    if [[ -n "$ANSWER" ]]; then
+        echo "$ANSWER"
     else
-        echo $DEFAULT
+        echo "$DEFAULT"
     fi
 }
 
@@ -23,16 +23,16 @@ function get_latest_git_tag() {
     fi
 
     if [[ -d "$BASE_DIR/.git" ]]; then
-        cd "$BASE_DIR"
+        cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
         git fetch --tags
 
-        local LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-        if [[ "0" != "$?" ]]; then
+        local LATEST_TAG
+        if ! LATEST_TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)"); then
             print_error "Failed to check out the latest tag. Sorry..." 1
             exit 1
         fi
 
-        echo $LATEST_TAG
+        echo "$LATEST_TAG"
     else
         # only if error shall be thrown
         if [[ "1" == "$EXIT_ON_FAILURE" ]]; then
@@ -52,24 +52,28 @@ function get_current_git_tag() {
     fi
 
     if [[ -d "$BASE_DIR/.git" ]]; then
-        cd "$BASE_DIR"
+        cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
 
-        local LATEST_LOG=$(git log --decorate -1)
-        if [[ "0" != "$?" ]]; then
+        local LATEST_LOG
+        if ! LATEST_LOG=$(git log --decorate -1); then
             print_error "Failed to check the current state of repository. Sorry..." 1
             exit 1
         fi
 
         # if the repository is situated on a branch
-        if [[ ! -z `echo $LATEST_LOG | grep "HEAD -> "` ]]; then
-            local CURRENT_BRANCH=`echo $LATEST_LOG | grep "HEAD -> " | sed -e 's/.*HEAD -> //' | sed -e 's/).*//' | sed -e 's/,.*//'`
-            echo $CURRENT_BRANCH
+        if echo "$LATEST_LOG" | grep -q "HEAD -> "; then
+            local CURRENT_BRANCH
+            CURRENT_BRANCH=$(echo "$LATEST_LOG" | grep "HEAD -> " | sed -e 's/.*HEAD -> //' | sed -e 's/).*//' | sed -e 's/,.*//')
+
+            echo "$CURRENT_BRANCH"
             echo "BRANCH"
 
         # else a tag should be checked out
-        elif [[ ! -z `echo $LATEST_LOG | grep "HEAD, tag: "` ]]; then
-            local CURRENT_TAG=`echo $LATEST_LOG | grep "HEAD, tag: " | sed -e 's/.*HEAD, tag: //' | sed -e 's/).*//' | sed -e 's/,.*//'`
-            echo $CURRENT_TAG
+        elif echo "$LATEST_LOG" | grep -q "HEAD, tag: "; then
+            local CURRENT_TAG
+            CURRENT_TAG=$(echo "$LATEST_LOG" | grep "HEAD, tag: " | sed -e 's/.*HEAD, tag: //' | sed -e 's/).*//' | sed -e 's/,.*//')
+
+            echo "$CURRENT_TAG"
             echo "TAG"
         fi
     else
@@ -91,14 +95,25 @@ function check_for_updates() {
         touch "$UPD_FILE_PATH"
     fi
 
-    local TODAY=`date +"%Y-%m-%d"`
-    local TODAY_MINUS_ONE_WEEK=`date +"%Y-%m-%d" -d "1 week ago"`
-    local LAST_UPDATE=`cat $UPD_FILE_PATH`
+    local TODAY
+    TODAY=$(date +"%Y-%m-%d")
+
+    local TODAY_MINUS_ONE_WEEK
+    TODAY_MINUS_ONE_WEEK=$(date +"%Y-%m-%d" -d "1 week ago")
+
+    local LAST_UPDATE
+    LAST_UPDATE=$(cat "$UPD_FILE_PATH")
 
     if [[ -z "$LAST_UPDATE" || "$LAST_UPDATE" < "$TODAY_MINUS_ONE_WEEK" ]]; then
-        local CURRENT_TAG_RESULT=`get_current_git_tag 0`
-        local SPLIT_TAG_RESULT=(${CURRENT_TAG_RESULT%$'\n'})
-        local LATEST_TAG=`get_latest_git_tag 0`
+        local CURRENT_TAG_RESULT
+        CURRENT_TAG_RESULT=$(get_current_git_tag 0)
+
+        local SPLIT_TAG_RESULT
+        SPLIT_TAG_RESULT=(${CURRENT_TAG_RESULT%$'\n'})
+
+        local LATEST_TAG
+        LATEST_TAG=$(get_latest_git_tag 0)
+
         local CURRENT_TAG=${SPLIT_TAG_RESULT[0]}
         local BRANCH_TYPE=${SPLIT_TAG_RESULT[1]}
 
@@ -111,6 +126,6 @@ function check_for_updates() {
             print_warning "Please use 'DockerExec self-update' to switch to the latest version." 1
         fi
 
-        echo "$TODAY" > $UPD_FILE_PATH
+        echo "$TODAY" > "$UPD_FILE_PATH"
     fi
 }

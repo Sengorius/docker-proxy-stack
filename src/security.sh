@@ -17,10 +17,10 @@ function test_files() {
             print_error "No $COMPOSE_V1 or $COMPOSE_V2 file was found! Are you located in your project directory?" 1
             exit 1
         else
-            echo $COMPOSE_V2
+            echo "$COMPOSE_V2"
         fi
     else
-        echo $COMPOSE_V1
+        echo "$COMPOSE_V1"
     fi
 
     exit 0
@@ -42,10 +42,10 @@ function test_files_proxy() {
             print_error "No $COMPOSE_V1 or $COMPOSE_V2 file was found! Something is wrong here..." 1
             exit 1
         else
-            echo $COMPOSE_V2
+            echo "$COMPOSE_V2"
         fi
     else
-        echo $COMPOSE_V1
+        echo "$COMPOSE_V1"
     fi
 
     exit 0
@@ -53,7 +53,7 @@ function test_files_proxy() {
 
 # test if the proxy setup was already initialized
 function is_proxy_running() {
-    STATUS=`docker ps -a --format "{{ .Names }}" -f status="running" -f name="proxy-nginx"`
+    STATUS=$(docker ps -a --format "{{ .Names }}" -f status="running" -f name="proxy-nginx")
 
     if [[ -z "$STATUS" ]]; then
         echo 0
