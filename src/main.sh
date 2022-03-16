@@ -6,15 +6,19 @@ function print_hosts() {
     local COMPOSE=$1
 
     local HOSTS
-    HOSTS=$(grep "VIRTUAL_HOST:" "$COMPOSE" | sed -e 's/VIRTUAL_HOST://' | sed -e 's/[[:space:]]*$//' | sed -e 's/^[[:space:]]*//' | sed 's/, /,/' | sed 's/,/\n/')
+    HOSTS=$(grep "VIRTUAL_HOST" "$COMPOSE")
 
-    print_info "Following hosts have been booted:"
-    echo "$HOSTS" | while read -r line; do
-        if [[ -n "$line" ]]; then
-            publish_single_entry_hosts_file "$line"
-            echo "  https://$line"
-        fi
-    done
+    if [[ -n "$HOSTS" ]]; then
+        print_info "Following hosts have been booted:"
+        echo "$HOSTS" | while read -r line; do
+            [[ "$line" =~ VIRTUAL_HOST.[[:space:]]*(.*)$ ]]
+
+            if [[ -n "$line" && -n "${BASH_REMATCH[1]}" ]]; then
+                publish_single_entry_hosts_file "${BASH_REMATCH[1]}"
+                echo "  https://${BASH_REMATCH[1]}"
+            fi
+        done
+    fi
 }
 
 # append host to hosts file, if not yet included
@@ -36,7 +40,8 @@ function get_container_suffixes() {
     local TYPE=$1
 
     local SUFFIXES
-    SUFFIXES=$(grep "^${TYPE}_CONTAINER_SUFFIXES=" "$PROXY_ENV_FILE" | sed -e "s/^${TYPE}_CONTAINER_SUFFIXES=//" | sed -e 's/[[:space:]]*$//')
+    SUFFIXES="${TYPE}_CONTAINER_SUFFIXES"
+    SUFFIXES="${!SUFFIXES}"
 
     if [[ -z "$SUFFIXES" ]]; then
         if [[ "web" == "$TYPE" ]]; then

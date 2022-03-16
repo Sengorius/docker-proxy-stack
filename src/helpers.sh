@@ -88,9 +88,6 @@ function get_current_git_tag() {
 
 # compare current branch/tag with latest remote branch and output a warning, if not matching
 function check_for_updates() {
-    local UPD_FILE_NAME=".last-update"
-    local UPD_FILE_PATH="$BASE_DIR/$UPD_FILE_NAME"
-
     if [[ ! -f "$UPD_FILE_PATH" ]]; then
         touch "$UPD_FILE_PATH"
     fi

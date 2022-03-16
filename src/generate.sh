@@ -3,15 +3,14 @@
 # does the openssl certificate generation for the proxy to work with SSL
 function generate_openssl_certs() {
     local RSA_COMMAND=openssl
-    local CERTS_PATH=$1
-    local RSA_KEY_LENGTH=$2
-    local RSA_VALID_DAYS=$3
-    local RSA_COUNTRY_NAME=$4
-    local RSA_STATE_NAME=$5
-    local RSA_LOCALITY_NAME=$6
-    local RSA_ORG_NAME=$7
-    local RSA_ORGUNIT_NAME=$8
-    local RSA_EMAIL=$9
+    local RSA_KEY_LENGTH=$1
+    local RSA_VALID_DAYS=$2
+    local RSA_COUNTRY_NAME=$3
+    local RSA_STATE_NAME=$4
+    local RSA_LOCALITY_NAME=$5
+    local RSA_ORG_NAME=$6
+    local RSA_ORGUNIT_NAME=$7
+    local RSA_EMAIL=$8
 
     # create complex variables
     local DOMAIN_ALT_NAMES="DNS:docker.test,DNS:*.docker.test,DNS:localhost,DNS:127.0.0.1,DNS:0:0:0:0:0:0:0:1"

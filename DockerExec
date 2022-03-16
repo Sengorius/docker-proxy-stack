@@ -6,33 +6,48 @@ export SCRIPT_PATH
 BASE_DIR=$(dirname "$SCRIPT_PATH")
 export BASE_DIR
 
-SRC_DIR="$BASE_DIR/src"
-export SRC_DIR
+CURRENT_DIR=$(pwd)
+export CURRENT_DIR
+
+export ENV_FILE=".env"
+export LINUX_HOSTS=/etc/hosts
+export STATUS_FILE_NAME="docker_current.txt"
+export TEMP_HOSTS_FILE=".current-hosts"
+export UPD_FILE_NAME=".last-update"
+
+export SRC_DIR="$BASE_DIR/src"
+export PROXY_ENV_FILE="$BASE_DIR/$ENV_FILE"
+export CERTS_PATH="$BASE_DIR/certs"
+export TEMP_HOSTS_PATH="$BASE_DIR/$TEMP_HOSTS_FILE"
+export UPD_FILE_PATH="$BASE_DIR/$UPD_FILE_NAME"
+export SPAWNS_AVAIL_PATH="$BASE_DIR/spawns-available"
+export SPAWNS_ENABLED_PATH="$BASE_DIR/spawns-enabled"
+
+# include variables from .env file in source directory
+# shellcheck disable=SC1090
+source "$PROXY_ENV_FILE"
 
 # include scripts
 . "$SRC_DIR/warnings.sh"
 . "$SRC_DIR/helpers.sh"
 . "$SRC_DIR/security.sh"
 . "$SRC_DIR/generate.sh"
+. "$SRC_DIR/spawns.sh"
 . "$SRC_DIR/main.sh"
 
 
 ###
 ### How to install this script
 ###
-if [[ -z "$PROXY_PATH" ]]; then
+if [[ ! -f "$PROXY_ENV_FILE" ]]; then
     echo
     echo -e "${COLOR_BLUE}Installation:"
     echo
     echo -e "  ${COLOR_WHITE}Make sure to clone the repository via ${COLOR_ORANGE}git clone${COLOR_WHITE} to this machine."
-    echo -e "  Then open the ~/.bashrc file in an editor and add following lines:"
+    echo -e "  Then copy the .env.template for a .env and adapt it to your needs."
     echo
-    echo -e "${COLOR_ORANGE}    # enable DockerExec (docker-proxy-stack)${COLOR_WHITE}"
-    echo -e "${COLOR_ORANGE}    PROXY_PATH='${SCRIPT_PATH}'${COLOR_WHITE} # change this, if necessary"
-    echo -e "${COLOR_ORANGE}    alias DockerExec='PROXY_PATH=\$PROXY_PATH ${SCRIPT_PATH}'${COLOR_WHITE} # do not change this"
-    echo
-    echo -e "  On Windows, the .bashrc is probably located at ${COLOR_ORANGE}C:\Users\%username%\.bashrc${COLOR_WHITE},"
-    echo -e "  if 'Git for Windows' or some WSL is installed."
+    echo -e "  You should also create a softlink or alias for DockerExec, e.g."
+    echo -e "  ${COLOR_ORANGE}ln -s /path/to/this/docker-proxy/DockerExec /home/\$USER/.local/bin/DockerExec${COLOR_WHITE}"
     echo
 
     exit 0
@@ -47,7 +62,7 @@ fi
 ENVIRONMENT=$1; shift
 
 case "$ENVIRONMENT" in
-    dev|prod|proxy|do)
+    dev|prod|proxy|spawn|do)
         ACTION=$1; shift
         ;;
     *)
@@ -88,6 +103,14 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo -e "    ${COLOR_BLUE}pg ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - running a bash on the Postgres proxy database [or will import an .sql file with specified \$dbname and \$filename]"
     echo -e "    ${COLOR_BLUE}generate${COLOR_WHITE} ${COLOR_RED}[\$dp]${COLOR_WHITE}     - creates a docker-compose.proxy.yaml + .env file with linked [\$dp].docker.test"
     echo
+    echo -e " ${COLOR_GREEN}spawn${COLOR_WHITE}: Create or edit proxy containers"
+    echo -e "    ${COLOR_BLUE}status${COLOR_WHITE}             - returns details about available and enabled spawns"
+    echo -e "    ${COLOR_BLUE}enable${COLOR_WHITE}             - enables a configured container from 'spawns-available' namespace"
+    echo -e "    ${COLOR_BLUE}disable${COLOR_WHITE}            - disables a configured container from 'spawns-enabled' namespace"
+    echo -e "    ${COLOR_BLUE}create${COLOR_WHITE}             - creates a new spawn file from given input"
+    echo -e "    ${COLOR_BLUE}mailcatcher${COLOR_WHITE}        - create a mailcatcher spawn from Skript-Manufaktur"
+    echo -e "    ${COLOR_BLUE}legacy${COLOR_WHITE}             - create the legacy containers from first version of the Docker-Proxy-Stack"
+    echo
     echo -e " ${COLOR_GREEN}do${COLOR_WHITE}: Other tools"
     echo -e "    ${COLOR_BLUE}ps${COLOR_WHITE}                 - lists all containers like 'docker ps -a'"
     echo -e "    ${COLOR_BLUE}remove${COLOR_WHITE}             - does a 'docker rm' to all containers that have stopped running"
@@ -100,12 +123,6 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo
 
     exit 0
-fi
-
-# test, if proxy directory is existing
-if [[ -n "$PROXY_PATH" && ! -d "$PROXY_PATH" ]]; then
-    print_error "The path to the docker-proxy-stack directory seems no to be configured correctly..." 1
-    exit 1
 fi
 
 # test existence of docker and docker-compose
@@ -121,37 +138,16 @@ command -v docker-compose > /dev/null 2>&1 || {
 }
 
 # add environment variables for docker
-export COMPOSE_DOCKER_CLI_BUILD=0
-export DOCKER_BUILDKIT=0
+COMPOSE_DOCKER_CLI_BUILD=0
+export COMPOSE_DOCKER_CLI_BUILD
 
-# remove the trailing slash
-export PROXY_PATH=${PROXY_PATH%/}
+DOCKER_BUILDKIT=0
+export DOCKER_BUILDKIT
 
-# set some more defaults
-ENV_FILE=".env"
-export ENV_FILE
 
-PROXY_ENV_FILE="$PROXY_PATH/$ENV_FILE"
-export PROXY_ENV_FILE
-
-CURRENT_DIR=$(pwd)
-export CURRENT_DIR
-
-LINUX_HOSTS=/etc/hosts
-export LINUX_HOSTS
-
-CERTS_PATH="$PROXY_PATH/certs"
-export CERTS_PATH
-
-STATUS_FILE_NAME="docker_current.txt"
-export STATUS_FILE_NAME
-
-TEMP_HOSTS_FILE=".current-hosts"
-export TEMP_HOSTS_FILE
-
-TEMP_HOSTS_PATH="$PROXY_PATH/$TEMP_HOSTS_FILE"
-export TEMP_HOSTS_PATH
-
+###
+### check for updates and execute environment + action
+###
 check_for_updates
 
 # watch the environment
@@ -201,28 +197,23 @@ elif [[ "prod" == "$ENVIRONMENT" ]]; then
 elif [[ "proxy" == "$ENVIRONMENT" ]]; then
     COMPOSE="docker-compose.proxy"
 
-    # start docker-compose in proxy path
+    # start docker-proxy in proxy path
     if [[ "init" == "$ACTION" ]]; then
-        # go to proxy dir and check for project files
-        cd "$PROXY_PATH" || (print_error "Could not change directory to $PROXY_PATH" && exit 1)
-        if ! COMPOSE=$(test_files_proxy "$ENV_FILE" "docker-compose"); then
-            echo "$COMPOSE"
-            exit 1
-        fi
+        cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
 
         # check the /certs directory
         if [[ ! -d "$CERTS_PATH" || ! -f "$CERTS_PATH/docker.test.key" ]]; then
             print_warning "The proxy is not fully configured, yet! Try 'DockerExec init-certs' to fix this."
         fi
 
-        # fetch parameters from .env file
-        NETWORK_NAME=$(grep "^NETWORK_NAME=" "$ENV_FILE" | sed -e 's/^NETWORK_NAME=//' | sed -e 's/[[:space:]]*$//')
-
         # first, test if the network exists and create, if not
         if ! docker network ls | grep -q "$NETWORK_NAME"; then
             docker network create --attachable "$NETWORK_NAME"
             print_info "Network $NETWORK_NAME was created successfully!"
         fi
+
+        # ensure the proxy main container is enabled
+        ensure_proxy_main
 
         # ensure the docker.test domain is located in hosts file
         publish_single_entry_hosts_file "docker.test"
@@ -233,25 +224,45 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         fi
         touch "$TEMP_HOSTS_PATH"
 
-        # print out all found hosts and start compose
-        docker-compose up -d
-        print_hosts "$COMPOSE"
+        DOCKER_LOGS=
+
+        # shellcheck disable=SC2045
+        for file in $(ls "$SPAWNS_ENABLED_PATH"); do
+            SPAWN_FILE="$SPAWNS_ENABLED_PATH/$file"
+            CON_NAME=$(grep "^CONTAINER_NAME=" "$SPAWN_FILE" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
+            DOCKER_LOGS="docker logs --details -f $CON_NAME & $DOCKER_LOGS"
+            RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME")
+
+            if [[ -z "$RUNNING_CONTAINER" ]]; then
+                # shellcheck disable=SC1090
+                . "$SPAWN_FILE" > /dev/null
+
+                [[ $(grep "VIRTUAL_HOST" "$SPAWN_FILE") =~ VIRTUAL_HOST=(.*)[[:space:]] ]]
+                CON_HOST=${BASH_REMATCH[1]}
+
+                print_info "Started container $CON_NAME"
+                if [[ -n "$CON_HOST" ]]; then
+                    echo "  https://$CON_HOST"
+                fi
+            fi
+        done
 
         # add all proxy containers (with there IP and hostname) to current hosts file
         update_host_files_with_proxy
 
-        # attach to the logs, if configured
-        ATTACH_TO_COMPOSE_LOGS=$(grep "^ATTACH_TO_COMPOSE_LOGS=" "$ENV_FILE" | sed -e 's/^ATTACH_TO_COMPOSE_LOGS=//' | sed -e 's/[[:space:]]*$//')
+        # if attaching to logs is enabled, use the "{ command1 & command2 }" notation to aggregate docker logs
         if [[ -z "$ATTACH_TO_COMPOSE_LOGS" || "1" == "$ATTACH_TO_COMPOSE_LOGS" ]]; then
-            docker-compose logs -f
+            DOCKER_LOGS=${DOCKER_LOGS%' & '}
+            /bin/sh -c "{ $DOCKER_LOGS; }"
         fi
 
     # stop and remove the proxy
     elif [[ "finish" == "$ACTION" ]]; then
         if [[ -n $(docker ps -a --format "{{ .Names }}" -f name="proxy-") ]]; then
-            cd "$PROXY_PATH" || (print_error "Could not change directory to $PROXY_PATH" && exit 1)
-            docker-compose stop
-            docker-compose rm -f
+            cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
+            print_info "Shutting down proxy..."
+            docker-compose stop > /dev/null
+            docker-compose rm -f > /dev/null
         else
             print_info "The Proxy is not started. No containers to stop."
         fi
@@ -341,14 +352,14 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             DOMAIN_PREFIX="my-project"
         fi
 
-        if [[ ! ( -f "$COMPOSE.yml" || -f "$COMPOSE.yaml" ) ]]; then
+        if [[ ! ( -f "./$COMPOSE.yml" || -f "./$COMPOSE.yaml" ) ]]; then
             generate_docker_compose_project "docker-compose.proxy.yaml" "$DOMAIN_PREFIX"
             print_info "A docker-compose.proxy.yaml was added."
         fi
 
-        if [[ ! -f "$ENV_FILE" ]]; then
-            generate_env_file_project ".env" "$DOMAIN_PREFIX"
-            print_info "A .env was added."
+        if [[ ! -f "./$ENV_FILE" ]]; then
+            generate_env_file_project "$ENV_FILE" "$DOMAIN_PREFIX"
+            print_info "A $ENV_FILE was added."
         fi
 
     else
@@ -356,13 +367,48 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         exit 1
     fi
 
+elif [[ "spawn" == "$ENVIRONMENT" ]]; then
+    # print spawn details
+    if [[ "status" == "$ACTION" ]]; then
+        print_info "Following spawn containers are available:"
+        find "$SPAWNS_AVAIL_PATH" -maxdepth 1 -type f,l -printf "  - %f\n"
+        echo
+
+        print_info "Following spawn containers are enabled in order:"
+        find "$SPAWNS_ENABLED_PATH" -maxdepth 1 -type f,l -exec basename {} \; | sort | awk '{print "  - "$1}'
+        echo
+
+    # link an existing spawn from available to enabled
+    elif [[ "enable" == "$ACTION" ]]; then
+        enable_spawn_container "${PARAMETERS[0]}" "${PARAMETERS[1]}"
+
+    # or remove the link from enabled directory
+    elif [[ "disable" == "$ACTION" ]]; then
+        disable_spawn_container "${PARAMETERS[0]}"
+
+    # create a new spawn file in available spawns directory
+    elif [[ "create" == "$ACTION" ]]; then
+        spawn_container_from_questions
+
+    # spawn a container for mailcatching
+    elif [[ "mailcatcher" == "$ACTION" ]]; then
+        spawn_smt_mailcatcher
+
+    # ask and spawn the containers related to Docker-Proxy-Stack v1
+    elif [[ "legacy" == "$ACTION" ]]; then
+        spawn_legacy_proxy_stack
+    fi
+
 elif [[ "do" == "$ENVIRONMENT" ]]; then
     # stop, then remove all containers
     if [[ "finish" == "$ACTION" ]]; then
         REMOVABLE_CONTAINERS=$(docker ps -aq)
         if [[ -n "$REMOVABLE_CONTAINERS" ]]; then
-            docker stop $REMOVABLE_CONTAINERS
-            docker rm -f $REMOVABLE_CONTAINERS
+            print_info "Shutting down..."
+            # shellcheck disable=SC2086
+            docker stop $REMOVABLE_CONTAINERS > /dev/null
+            # shellcheck disable=SC2086
+            docker rm -f $REMOVABLE_CONTAINERS > /dev/null
         else
             print_info "No containers to stop."
         fi
@@ -375,6 +421,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
     elif [[ "remove" == "$ACTION" ]]; then
         EXITED_CONTAINERS=$(docker ps -aq -f status="exited")
         if [[ -n "$EXITED_CONTAINERS" ]]; then
+            # shellcheck disable=SC2086
             docker rm -f $EXITED_CONTAINERS
         else
             print_info "No containers to remove."
@@ -384,7 +431,8 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
     elif [[ "cleanup" == "$ACTION" ]]; then
         CLEANABLE_CONTAINERS=$(docker images | grep "<none>" | awk "{print \$3}")
         if [[ -n "$CLEANABLE_CONTAINERS" ]]; then
-            docker rmi -f "$CLEANABLE_CONTAINERS"
+            # shellcheck disable=SC2086
+            docker rmi -f $CLEANABLE_CONTAINERS
         else
             print_info "No unfinished build layers to remove."
         fi
@@ -471,7 +519,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         RSA_ORGUNIT_NAME=$(match_answer_or_default "Organizational Unit Name (a section) [Docker Proxy Stack]: " "Docker Proxy Stack")
         RSA_EMAIL=$(match_answer_or_default "E-Mail Address []: " "")
 
-        generate_openssl_certs "$CERTS_PATH" "$RSA_KEY_LENGTH" "$RSA_VALID_DAYS" "$RSA_COUNTRY_NAME" "$RSA_STATE_NAME" \
+        generate_openssl_certs "$RSA_KEY_LENGTH" "$RSA_VALID_DAYS" "$RSA_COUNTRY_NAME" "$RSA_STATE_NAME" \
                                "$RSA_LOCALITY_NAME" "$RSA_ORG_NAME" "$RSA_ORGUNIT_NAME" "$RSA_EMAIL"
 
         print_info "Done creating rootCA and certificates in $CERTS_PATH."
@@ -483,6 +531,10 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         LATEST_TAG=$(get_latest_git_tag)
         git checkout --quiet "$LATEST_TAG"
         print_info "Updated the Docker Proxy Stack. Checked out version $LATEST_TAG." 1
+
+        print_info "There are major changes from v1 to $LATEST_TAG. If you upgraded from v1 to v2, please"
+        print_info "follow the upgrade instructions, to get the Docker-Proxy-Stack up and running again!"
+        print_info " >> https://sengorius.github.io/repositories/docker-proxy/upgrade-v2.html"
 
     # shortcut to list all docker containers
     elif [[ "ps" == "$ACTION" ]]; then

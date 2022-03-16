@@ -17,6 +17,10 @@ tags
 /vhost.d/*
 !/vhost.d/.gitignore
 
-### certificates
+# certificates
 /certs/*
 !/certs/.gitignore
+
+# spawns
+/spawns-available
+/spawns-enabled
