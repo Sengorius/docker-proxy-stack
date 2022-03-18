@@ -242,6 +242,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
                 print_info "Started container $CON_NAME"
                 if [[ -n "$CON_HOST" ]]; then
+                    publish_single_entry_hosts_file "$CON_HOST"
                     echo "  https://$CON_HOST"
                 fi
             fi
