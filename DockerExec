@@ -372,7 +372,7 @@ elif [[ "spawn" == "$ENVIRONMENT" ]]; then
     # print spawn details
     if [[ "status" == "$ACTION" ]]; then
         print_info "Following spawn containers are available:"
-        find "$SPAWNS_AVAIL_PATH" -maxdepth 1 -type f,l -printf "  - %f\n"
+        find "$SPAWNS_AVAIL_PATH" -maxdepth 1 -type f,l -exec basename {} \; | sort | awk '{print "  - "$1}'
         echo
 
         print_info "Following spawn containers are enabled in order:"
