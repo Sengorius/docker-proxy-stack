@@ -531,8 +531,10 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
     # shortcut to list all docker containers
     elif [[ "self-update" == "$ACTION" || "selfupdate" == "$ACTION" ]]; then
-        # get_latest_git_tag will cd us into the $BASE_DIR directory
+        # get_latest_git_tag will NOT cd us into the $BASE_DIR directory
         LATEST_TAG=$(get_latest_git_tag)
+        cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
+
         git checkout --quiet "$LATEST_TAG"
         print_info "Updated the Docker Proxy Stack. Checked out version $LATEST_TAG." 1
 
