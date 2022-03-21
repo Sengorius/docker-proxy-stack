@@ -80,7 +80,10 @@ fi
 # return the help statement, if asked for
 if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     BN=$(basename "$0")
+    VERSION=$(get_current_git_tag | head -n 1)
 
+    echo
+    echo -e "${COLOR_WHITE}DockerExec shell script in version ${COLOR_RED}$VERSION"
     echo
     echo -e "${COLOR_WHITE}Usage:"
     echo -e "  $BN ${COLOR_GREEN}[Environment] ${COLOR_BLUE}[Option] ${COLOR_RED}[\$Parameter(s)] ${COLOR_WHITE}"
