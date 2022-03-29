@@ -44,9 +44,9 @@ function get_container_suffixes() {
     SUFFIXES="${!SUFFIXES}"
 
     if [[ -z "$SUFFIXES" ]]; then
-        if [[ "web" == "$TYPE" ]]; then
+        if [[ "WEB" == "$TYPE" || "web" == "$TYPE" ]]; then
             SUFFIXES="web"
-        elif [[ "app" == "$TYPE" ]]; then
+        elif [[ "APP" == "$TYPE" || "app" == "$TYPE" ]]; then
             SUFFIXES="app|php"
         else
             print_error "Unknown container suffix type '$TYPE'!" 1
@@ -67,13 +67,12 @@ function get_container_names() {
     local APP_NAME
     APP_NAME=$(grep "^CON_NAME=" "$ENV_FILE" | sed -e 's/^CON_NAME=//' | sed -e 's/[[:space:]]*$//')
 
-    local APP_CONTAINER_SUFFIXES
-    APP_CONTAINER_SUFFIXES=$(get_container_suffixes "APP")
+    local ACF
+    ACF=$(get_container_suffixes "APP")
 
     if [[ -n "$APP_PREFIX" ]]; then
         local RUNNING_APPS=
-        RUNNING_APPS=$(docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)(${APP_CONTAINER_SUFFIXES})$" -f status="running")
-
+        RUNNING_APPS=$(docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)($ACF)$" -f status="running")
         echo "$RUNNING_APPS"
 
     elif [[ -n "$APP_NAME" ]]; then
@@ -95,13 +94,12 @@ function get_nginx_names() {
     local APP_NAME
     APP_NAME=$(grep "^CON_NAME=" "$ENV_FILE" | sed -e 's/^CON_NAME=//' | sed -e 's/[[:space:]]*$//')
 
-    local WEB_CONTAINER_SUFFIXES
-    WEB_CONTAINER_SUFFIXES=$(get_container_suffixes "WEB")
+    local WCF
+    WCF=$(get_container_suffixes "WEB")
 
     if [[ -n "$APP_PREFIX" ]]; then
         local RUNNING_APPS
-        RUNNING_APPS=$(docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)(${WEB_CONTAINER_SUFFIXES})$" -f status="running")
-
+        RUNNING_APPS=$(docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)($WCF)$" -f status="running")
         echo "$RUNNING_APPS"
 
     elif [[ -n "$APP_NAME" ]]; then
@@ -155,68 +153,58 @@ function update_host_files() {
         HOST_ACTION="append"
     fi
 
-    if [[ "0" != "${#WEB_CON_NAMES[@]}" || "0" != "${#APP_CON_NAMES[@]}" ]]; then
-        SHALL_BE_PUBLISHED=
+    local SHALL_BE_PUBLISHED=
 
-        for WEB_CON in "${WEB_CON_NAMES[@]}"; do
-            WEB_CON_STATE=$(docker ps -a --format "table {{.Status}}\t{{.ID}}\t{{.Names}}" | grep "$WEB_CON")
+    for WEB_CON in "${WEB_CON_NAMES[@]}"; do
+        local WEB_IP
+        WEB_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$WEB_CON")
 
-            if [[ $WEB_CON_STATE == *"Up "* ]]; then
-                local WEB_IP
-                WEB_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$WEB_CON")
+        local WEB_HOST
+        WEB_HOST=$(docker inspect --format '{{ .Config.Env }}' "$WEB_CON" | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//')
 
-                local WEB_HOST
-                WEB_HOST=$(docker inspect --format '{{ .Config.Env }}' "$WEB_CON" | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//')
+        local WEB_HASH
+        WEB_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$WEB_CON")
 
-                local WEB_HASH
-                WEB_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$WEB_CON")
+        SHALL_BE_PUBLISHED=yes
 
-                SHALL_BE_PUBLISHED=yes
+        # remove the line from temporary file, if existing
+        if [[ "remove" == "$HOST_ACTION" ]]; then
+            sed -i "/$WEB_HOST/d" "$TEMP_HOSTS_PATH"
+            sed -i "/$WEB_HASH/d" "$TEMP_HOSTS_PATH"
 
-                # remove the line from temporary file, if existing
-                if [[ "remove" == "$HOST_ACTION" ]]; then
-                    sed -i "/$WEB_HOST/d" "$TEMP_HOSTS_PATH"
-                    sed -i "/$WEB_HASH/d" "$TEMP_HOSTS_PATH"
-
-                # add the IP => HOST to the temporary file
-                elif [[ -n "$WEB_IP" && -n "$WEB_HOST" ]] && ! grep -q "$WEB_HOST" "$TEMP_HOSTS_PATH"; then
-                    echo -e "$WEB_IP\t\t$WEB_HOST $WEB_HASH" >> "$TEMP_HOSTS_PATH"
-                fi
-            fi
-        done
-
-        for APP_CON in "${APP_CON_NAMES[@]}"; do
-            APP_CON_STATE=$(docker ps -a --format "table {{.Status}}\t{{.ID}}\t{{.Names}}" | grep "$APP_CON")
-
-            if [[ $APP_CON_STATE == *"Up "* ]]; then
-                local APP_IP
-                APP_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$APP_CON")
-
-                local APP_HASH
-                APP_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$APP_CON")
-
-                SHALL_BE_PUBLISHED=yes
-
-                # remove the line from temporary file, if existing
-                if [[ "remove" == "$HOST_ACTION" ]]; then
-                    sed -i "/$APP_HASH/d" "$TEMP_HOSTS_PATH"
-
-                # add the IP => HOST to the temporary file
-                elif [[ -n "$APP_IP" && -n "$APP_HASH" ]] && ! grep "$APP_HASH" "$TEMP_HOSTS_PATH"; then
-                    echo -e "$APP_IP\t\t$APP_HASH" >> "$TEMP_HOSTS_PATH"
-                fi
-            fi
-        done
-
-        if [[ -n "$SHALL_BE_PUBLISHED" ]]; then
-            local APP_CONTAINER_SUFFIXES
-            APP_CONTAINER_SUFFIXES=$(get_container_suffixes "APP")
-
-            local WEB_CONTAINER_SUFFIXES
-            WEB_CONTAINER_SUFFIXES=$(get_container_suffixes "WEB")
-
-            publish_host_files "${APP_CONTAINER_SUFFIXES}|${WEB_CONTAINER_SUFFIXES}"
+        # add the IP => HOST to the temporary file
+        elif [[ -n "$WEB_IP" && -n "$WEB_HOST" ]] && ! grep -q "$WEB_HOST" "$TEMP_HOSTS_PATH"; then
+            echo -e "$WEB_IP\t\t$WEB_HOST $WEB_HASH" >> "$TEMP_HOSTS_PATH"
         fi
+    done
+
+    for APP_CON in "${APP_CON_NAMES[@]}"; do
+        local APP_IP
+        APP_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$APP_CON")
+
+        local APP_HASH
+        APP_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$APP_CON")
+
+        SHALL_BE_PUBLISHED=yes
+
+        # remove the line from temporary file, if existing
+        if [[ "remove" == "$HOST_ACTION" ]]; then
+            sed -i "/$APP_HASH/d" "$TEMP_HOSTS_PATH"
+
+        # add the IP => HOST to the temporary file
+        elif [[ -n "$APP_IP" && -n "$APP_HASH" ]] && ! grep "$APP_HASH" "$TEMP_HOSTS_PATH"; then
+            echo -e "$APP_IP\t\t$APP_HASH" >> "$TEMP_HOSTS_PATH"
+        fi
+    done
+
+    if [[ -n "$SHALL_BE_PUBLISHED" ]]; then
+        local ACF
+        ACF=$(get_container_suffixes "APP")
+
+        local WCF
+        WCF=$(get_container_suffixes "WEB")
+
+        publish_host_files "$ACF|$WCF"
     fi
 }
 
