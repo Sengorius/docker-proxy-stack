@@ -256,3 +256,27 @@ function publish_host_files() {
 
     print_info "The /etc/hosts file of $COUNTER proxy containers was updated successfully!"
 }
+
+# aggregating and attaching to all running proxy container logs
+function attach_to_logs() {
+    DOCKER_LOGS=
+
+    if [[ -z "$ATTACH_TO_COMPOSE_LOGS" || "1" == "$ATTACH_TO_COMPOSE_LOGS" ]]; then
+        # shellcheck disable=SC2045
+        for file in $(ls "$SPAWNS_ENABLED_PATH"); do
+            SPAWN_FILE="$SPAWNS_ENABLED_PATH/$file"
+            CON_NAME=$(grep "^CONTAINER_NAME=" "$SPAWN_FILE" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
+            RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME" -f status="running")
+
+            if [[ -n "$RUNNING_CONTAINER" ]]; then
+                DOCKER_LOGS="docker logs --details -f $CON_NAME & $DOCKER_LOGS"
+            fi
+        done
+
+        # if attaching to logs is enabled, use the "{ command1 & command2 }" notation to aggregate docker logs
+        if [[ -n "$DOCKER_LOGS" ]]; then
+            DOCKER_LOGS=${DOCKER_LOGS%' & '}
+            /bin/sh -c "{ $DOCKER_LOGS; }"
+        fi
+    fi
+}

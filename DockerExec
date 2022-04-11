@@ -227,8 +227,6 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         fi
         touch "$TEMP_HOSTS_PATH"
 
-        DOCKER_LOGS=
-
         # shellcheck disable=SC2045
         for file in $(ls "$SPAWNS_ENABLED_PATH"); do
             SPAWN_FILE="$SPAWNS_ENABLED_PATH/$file"
@@ -243,8 +241,6 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
                 if [[ -z "$RUNNING_CONTAINER" ]]; then
                     # shellcheck disable=SC1090
                     . "$SPAWN_FILE" > /dev/null
-
-                    DOCKER_LOGS="docker logs --details -f $CON_NAME & $DOCKER_LOGS"
 
                     [[ $(grep "VIRTUAL_HOST" "$SPAWN_FILE") =~ VIRTUAL_HOST=(.*)[[:space:]] ]]
                     CON_HOST=${BASH_REMATCH[1]}
@@ -262,10 +258,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         update_host_files_with_proxy
 
         # if attaching to logs is enabled, use the "{ command1 & command2 }" notation to aggregate docker logs
-        if [[ -n "$DOCKER_LOGS" ]] && [[ -z "$ATTACH_TO_COMPOSE_LOGS" || "1" == "$ATTACH_TO_COMPOSE_LOGS" ]]; then
-            DOCKER_LOGS=${DOCKER_LOGS%' & '}
-            /bin/sh -c "{ $DOCKER_LOGS; }"
-        fi
+        attach_to_logs
 
     # stop and remove the proxy
     elif [[ "finish" == "$ACTION" ]]; then
