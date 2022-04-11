@@ -233,20 +233,27 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         for file in $(ls "$SPAWNS_ENABLED_PATH"); do
             SPAWN_FILE="$SPAWNS_ENABLED_PATH/$file"
             CON_NAME=$(grep "^CONTAINER_NAME=" "$SPAWN_FILE" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
-            DOCKER_LOGS="docker logs --details -f $CON_NAME & $DOCKER_LOGS"
-            RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME")
 
-            if [[ -z "$RUNNING_CONTAINER" ]]; then
-                # shellcheck disable=SC1090
-                . "$SPAWN_FILE" > /dev/null
+            EXITED_CONTAINER=$(docker ps -aq -f name="$CON_NAME" -f status="exited")
+            if [[ -n "$EXITED_CONTAINER" ]]; then
+                docker start "$CON_NAME"
+            else
+                RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME")
 
-                [[ $(grep "VIRTUAL_HOST" "$SPAWN_FILE") =~ VIRTUAL_HOST=(.*)[[:space:]] ]]
-                CON_HOST=${BASH_REMATCH[1]}
+                if [[ -z "$RUNNING_CONTAINER" ]]; then
+                    # shellcheck disable=SC1090
+                    . "$SPAWN_FILE" > /dev/null
 
-                print_info "Started container $CON_NAME"
-                if [[ -n "$CON_HOST" ]]; then
-                    publish_single_entry_hosts_file "$CON_HOST"
-                    echo "  https://$CON_HOST"
+                    DOCKER_LOGS="docker logs --details -f $CON_NAME & $DOCKER_LOGS"
+
+                    [[ $(grep "VIRTUAL_HOST" "$SPAWN_FILE") =~ VIRTUAL_HOST=(.*)[[:space:]] ]]
+                    CON_HOST=${BASH_REMATCH[1]}
+
+                    print_info "Started container $CON_NAME"
+                    if [[ -n "$CON_HOST" ]]; then
+                        publish_single_entry_hosts_file "$CON_HOST"
+                        echo "  https://$CON_HOST"
+                    fi
                 fi
             fi
         done
@@ -255,7 +262,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         update_host_files_with_proxy
 
         # if attaching to logs is enabled, use the "{ command1 & command2 }" notation to aggregate docker logs
-        if [[ -z "$ATTACH_TO_COMPOSE_LOGS" || "1" == "$ATTACH_TO_COMPOSE_LOGS" ]]; then
+        if [[ -n "$DOCKER_LOGS" ]] && [[ -z "$ATTACH_TO_COMPOSE_LOGS" || "1" == "$ATTACH_TO_COMPOSE_LOGS" ]]; then
             DOCKER_LOGS=${DOCKER_LOGS%' & '}
             /bin/sh -c "{ $DOCKER_LOGS; }"
         fi
