@@ -262,13 +262,26 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # stop and remove the proxy
     elif [[ "finish" == "$ACTION" ]]; then
-        if [[ -n $(docker ps -a --format "{{ .Names }}" -f name="proxy-") ]]; then
-            cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
+        PROXY_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f name="proxy-" -f status="running")
+        if [[ -n "$PROXY_CONTAINERS" ]]; then
             print_info "Shutting down proxy..."
-            docker-compose stop > /dev/null
-            docker-compose rm -f > /dev/null
+
+            for container in $PROXY_CONTAINERS; do
+                docker stop "$container" > /dev/null
+                echo "  - stopped $container"
+            done
         else
             print_info "The Proxy is not started. No containers to stop."
+        fi
+
+        STOPPED_PROXY_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f name="proxy-" -f status="exited")
+        if [[ -n "$STOPPED_PROXY_CONTAINERS" ]]; then
+            print_info "Removing proxy containers..."
+
+            for container in $STOPPED_PROXY_CONTAINERS; do
+                docker rm -f "$container" > /dev/null
+                echo "  - removed $container"
+            done
         fi
 
         # remove the temporary hosts
