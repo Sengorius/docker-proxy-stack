@@ -102,8 +102,7 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - shuts the docker NGINX proxy stack down"
     echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
     echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
-#    echo -e "    ${COLOR_BLUE}db ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - running a bash on the MySQL proxy database [or will import an .sql file with specified \$dbname and \$filename]"
-#    echo -e "    ${COLOR_BLUE}pg ${COLOR_RED}[\$db \$f]${COLOR_WHITE}        - running a bash on the Postgres proxy database [or will import an .sql file with specified \$dbname and \$filename]"
+    echo -e "    ${COLOR_BLUE}db-import${COLOR_WHITE}          - import a .sql dump file into a database container"
     echo -e "    ${COLOR_BLUE}generate${COLOR_WHITE} ${COLOR_RED}[\$dp]${COLOR_WHITE}     - creates a docker-compose.proxy.yaml + .env file with linked [\$dp].docker.test"
     echo
     echo -e " ${COLOR_GREEN}spawn${COLOR_WHITE}: Create or edit proxy containers"
@@ -319,47 +318,9 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         docker-compose -f "$COMPOSE" stop
         docker-compose -f "$COMPOSE" rm -f
 
-    # start the docker proxy db with bash
-#    elif [[ "db" == "$ACTION" ]]; then
-#        DB_NAME=$(grep "^DB_NAME=" "$PROXY_ENV_FILE" | sed -e 's/^DB_NAME=//' | sed -e 's/[[:space:]]*$//')
-#        RUNNING_APP=$(docker ps -aq -f name="$DB_NAME" -f status="running")
-#
-#        if [[ -n "$RUNNING_APP" ]]; then
-#            USE_DATABASE="${PARAMETERS[0]}"
-#            USE_DB_FILE="${PARAMETERS[1]}"
-#
-#            if [[ -n "$USE_DATABASE" && -n "$USE_DB_FILE" ]]; then
-#                docker exec -it "$DB_NAME" bash -c "mysql -proot -e 'CREATE DATABASE IF NOT EXISTS $USE_DATABASE' && mysql -proot '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
-#                print_info "Done"
-#            else
-#                docker exec -it "$DB_NAME" bash -c "cd /var/data && bash"
-#            fi
-#
-#        else
-#            print_error "The $DB_NAME container is not up and running..." 1
-#            exit 1
-#        fi
-
-    # start the docker proxy pg with bash
-#    elif [[ "pg" == "$ACTION" ]]; then
-#        PG_NAME=$(grep "^PG_NAME=" "$PROXY_ENV_FILE" | sed -e 's/^PG_NAME=//' | sed -e 's/[[:space:]]*$//')
-#        RUNNING_APP=$(docker ps -aq -f name="$PG_NAME" -f status="running")
-#
-#        if [[ -n "$RUNNING_APP" ]]; then
-#            USE_DATABASE="${PARAMETERS[0]}"
-#            USE_DB_FILE="${PARAMETERS[1]}"
-#
-#            if [[ -n "$USE_DATABASE" && -n "$USE_DB_FILE" ]]; then
-#                docker exec -it "$PG_NAME" bash -c "echo \"SELECT 'CREATE DATABASE $USE_DATABASE' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$USE_DATABASE')\gexec\" | psql && psql -d '$USE_DATABASE' < '/var/data/$USE_DB_FILE'" > /dev/null 2>&1
-#                print_info "Done"
-#            else
-#                docker exec -it "$PG_NAME" bash -c "cd /var/data && bash"
-#            fi
-#
-#        else
-#            print_error "The $PG_NAME container is not up and running..." 1
-#            exit 1
-#        fi
+    # do a dump import for a database container
+    elif [[ "db-import" == "$ACTION" || "import" == "$ACTION" || "db" == "$ACTION" ]]; then
+        import_to_database_container
 
     # generate a docker-compose.proxy.yaml with a basic configuration
     elif [[ "generate" == "$ACTION" ]]; then

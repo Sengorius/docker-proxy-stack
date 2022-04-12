@@ -126,3 +126,64 @@ function check_for_updates() {
         echo "$TODAY" > "$UPD_FILE_PATH"
     fi
 }
+
+# asking question to import a .sql file dump into a database container
+function import_to_database_container() {
+    print_info "Starting the import for a database dump. Please position the .sql file within the data"
+    print_info "directory in proxy-stack and map the volume in your database containers with"
+    print_info "\`--volume \"\${DATA_PATH}:/var/data\"\` to make this work." 1
+    print_info "Then answer following questions:" 1
+
+    CONTAINER_NAME=$(match_answer_or_default "Which running container should be used? " "")
+    if [[ -z "$CONTAINER_NAME" ]]; then
+        print_error "The container name is a mandatory parameter!" 1
+        exit 1
+    fi
+
+    RUNNING_APP=$(docker ps -aq -f name="$CONTAINER_NAME" -f status="running")
+    if [[ -z "$RUNNING_APP" ]]; then
+        print_error "The container $CONTAINER_NAME is not up and running!" 1
+        exit 1
+    fi
+
+    DB_ARCH=$(match_answer_or_default "Which database architecture is on that container? [MYSQL/pgsql] " "mysql")
+    if [[ -z "$DB_ARCH" ]]; then
+        print_error "The database architecture is a mandatory parameter!" 1
+        exit 1
+    fi
+
+    case "$DB_ARCH" in
+        mysql|MYSQL|pgsql|PGSQL)
+            # anything is fine
+            ;;
+        *)
+            print_error "Unknown database architecture '$DB_ARCH'!" 1
+            exit 1
+            ;;
+    esac
+
+    DB_NAME=$(match_answer_or_default "Which database on that container shall be imported in? " "")
+    if [[ -z "$DB_NAME" ]]; then
+        print_error "The database name is a mandatory parameter!" 1
+        exit 1
+    fi
+
+    FILE_NAME=$(match_answer_or_default "Which file shall be imported? " "")
+    if [[ -z "$FILE_NAME" ]]; then
+        print_error "Please specify the dump .sql file to import!" 1
+        exit 1
+    fi
+
+    case "$DB_ARCH" in
+        MYSQL|mysql)
+            COMMAND="mysql -proot -e 'CREATE DATABASE IF NOT EXISTS $DB_NAME' && mysql -proot '$DB_NAME' < '/var/data/$FILE_NAME'"
+            ;;
+        PGSQL|pgsql)
+            COMMAND="echo \"SELECT 'CREATE DATABASE $DB_NAME' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec\" | psql && psql -d '$DB_NAME' < '/var/data/$FILE_NAME'"
+            ;;
+    esac
+
+    echo
+    docker exec -it "$CONTAINER_NAME" bash -c "$COMMAND" && \
+    print_info "Import complete." 1
+}
