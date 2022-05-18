@@ -518,7 +518,12 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
     # shortcut to list all docker containers
     elif [[ "ps" == "$ACTION" ]]; then
-        docker ps -a --format "table {{.Image}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
+        PS_COLUMNS=${DOCKER_PS_COLUMNS:-Image|Status|Ports|Names}
+        PS_COLUMNS=${PS_COLUMNS//|/ }
+        PS_COLUMNS_FORMATTED=$(join_by '}}\t{{.' $PS_COLUMNS)
+        PS_FORMAT="table {{.$PS_COLUMNS_FORMATTED}}"
+
+        docker ps -a --format "$PS_FORMAT"
 
     else
         print_error "Unknown option '$ACTION'..." 1

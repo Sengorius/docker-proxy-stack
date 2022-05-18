@@ -187,3 +187,14 @@ function import_to_database_container() {
     docker exec -it "$CONTAINER_NAME" bash -c "$COMMAND" && \
     print_info "Import complete." 1
 }
+
+# joins an input by given glue on first parameter
+# usage: join_by ', ' a b c d
+function join_by() {
+  local d=${1-}
+  local f=${2-}
+
+  if shift 2; then
+    printf %s "$f" "${@/#/$d}"
+  fi
+}
