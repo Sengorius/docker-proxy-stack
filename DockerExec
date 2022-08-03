@@ -255,6 +255,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
         # add all proxy containers (with there IP and hostname) to current hosts file
         update_host_files_with_proxy
+        publish_host_files "APP"
 
         # if attaching to logs is enabled, use the "{ command1 & command2 }" notation to aggregate docker logs
         attach_to_logs

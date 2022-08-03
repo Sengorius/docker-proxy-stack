@@ -242,7 +242,9 @@ function publish_host_files() {
 
     local COUNTER=0
     local TARGET_CONTAINERS
+    local PROXY_CONTAINERS
     TARGET_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f status="running"${FORMATTED_CONTAINERS})
+    PROXY_CONTAINERS=$(docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-')
 
     while read -r CURRENT; do
         if [[ -n "$CURRENT" ]]; then
@@ -252,7 +254,7 @@ function publish_host_files() {
             docker exec -u root "$CURRENT" /bin/sh -c "echo '$UPDATED_HOSTS' > /etc/hosts"
             COUNTER=$((COUNTER+1))
         fi
-    done <<< "$TARGET_CONTAINERS"
+    done <<< "$(printf "%s\n%s" "$TARGET_CONTAINERS" "$PROXY_CONTAINERS")"
 
     print_info "The /etc/hosts file of $COUNTER proxy containers was updated successfully!"
 }
