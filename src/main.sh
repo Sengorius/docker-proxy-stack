@@ -246,10 +246,10 @@ function publish_host_files() {
 
     while read -r CURRENT; do
         if [[ -n "$CURRENT" ]]; then
-            CURRENT_CONTENT=$(docker exec "$CURRENT" /bin/sh -c "cat /etc/hosts")
+            CURRENT_CONTENT=$(docker exec -u root "$CURRENT" /bin/sh -c "cat /etc/hosts")
             CURRENT_CONTENT=$(echo "$CURRENT_CONTENT" | sed '/^### DockerExec hosts file update ###/,$d')
             UPDATED_HOSTS="$CURRENT_CONTENT\n### DockerExec hosts file update ###\n$(cat "$TEMP_HOSTS_PATH")"
-            docker exec "$CURRENT" /bin/sh -c "echo '$UPDATED_HOSTS' > /etc/hosts"
+            docker exec -u root "$CURRENT" /bin/sh -c "echo '$UPDATED_HOSTS' > /etc/hosts"
             COUNTER=$((COUNTER+1))
         fi
     done <<< "$TARGET_CONTAINERS"
