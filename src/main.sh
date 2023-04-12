@@ -116,7 +116,7 @@ function compose_run() {
     local COMPOSE=$1
     local ENV_FILE=$2
 
-    docker-compose -f "$COMPOSE" up -d
+    docker-compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d
 
     if [[ -n "$ENV_FILE" ]]; then
         update_host_files "$ENV_FILE"
@@ -140,6 +140,15 @@ function compose_run() {
             fi
         fi
     fi
+}
+
+# offer a function to stop and remove all containers in a context
+function compose_halt() {
+    local COMPOSE=$1
+    local ENV_FILE=$2
+
+    docker-compose -f "$COMPOSE" --env-file "$ENV_FILE" stop
+    docker-compose -f "$COMPOSE" --env-file "$ENV_FILE" rm -f
 }
 
 # update any running -web and -app containers /etc/hosts file with the new started IP of the current -web container

@@ -9,14 +9,14 @@ export BASE_DIR
 CURRENT_DIR=$(pwd)
 export CURRENT_DIR
 
-export ENV_FILE=".env"
+export ENV_FILE="${DEFAULT_ENV_FILE:-.env}"
 export LINUX_HOSTS=/etc/hosts
 export STATUS_FILE_NAME="docker_current.txt"
 export TEMP_HOSTS_FILE=".current-hosts"
 export UPD_FILE_NAME=".last-update"
 
 export SRC_DIR="$BASE_DIR/src"
-export PROXY_ENV_FILE="$BASE_DIR/$ENV_FILE"
+export PROXY_ENV_FILE="$BASE_DIR/.env"
 export CERTS_PATH="$BASE_DIR/certs"
 export TEMP_HOSTS_PATH="$BASE_DIR/$TEMP_HOSTS_FILE"
 export UPD_FILE_PATH="$BASE_DIR/$UPD_FILE_NAME"
@@ -90,18 +90,18 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo
     echo -e "${COLOR_WHITE}Environments and their options:"
     echo -e " ${COLOR_GREEN}dev${COLOR_WHITE}: Controls for docker-compose.yml and docker-compose.dev.yml"
-    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
-    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
+    echo -e "    ${COLOR_BLUE}start ${COLOR_RED}[\$f]${COLOR_WHITE}         - executes an extended docker-compose setup with the local file [and given .env file]"
+    echo -e "    ${COLOR_BLUE}stop ${COLOR_RED}[\$f]${COLOR_WHITE}          - shutdown for the local docker-compose setup [and given .env file]"
     echo
     echo -e " ${COLOR_GREEN}prod${COLOR_WHITE}: Controls for docker-compose.prod.yml"
-    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
-    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
+    echo -e "    ${COLOR_BLUE}start ${COLOR_RED}[\$f]${COLOR_WHITE}         - executes an extended docker-compose setup with the local file [and given .env file]"
+    echo -e "    ${COLOR_BLUE}stop ${COLOR_RED}[\$f]${COLOR_WHITE}          - shutdown for the local docker-compose setup [and given .env file]"
     echo
     echo -e " ${COLOR_GREEN}proxy${COLOR_WHITE}: Controls docker-compose.proxy.yml and the proxy stack"
-    echo -e "    ${COLOR_BLUE}init${COLOR_WHITE}               - starts the docker NGINX proxy stack and creates a netzwork, if necessary"
+    echo -e "    ${COLOR_BLUE}init${COLOR_WHITE}               - starts the docker NGINX proxy stack and creates a network, if necessary"
     echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - shuts the docker NGINX proxy stack down"
-    echo -e "    ${COLOR_BLUE}start${COLOR_WHITE}              - executes an extended docker-compose setup with the local file"
-    echo -e "    ${COLOR_BLUE}stop${COLOR_WHITE}               - shutdown for the local docker-compose setup"
+    echo -e "    ${COLOR_BLUE}start ${COLOR_RED}[\$f]${COLOR_WHITE}         - executes an extended docker-compose setup with the local file [and given .env file]"
+    echo -e "    ${COLOR_BLUE}stop ${COLOR_RED}[\$f]${COLOR_WHITE}          - shutdown for the local docker-compose setup [and given .env file]"
     echo -e "    ${COLOR_BLUE}db-import${COLOR_WHITE}          - import a .sql dump file into a database container"
     echo -e "    ${COLOR_BLUE}generate${COLOR_WHITE} ${COLOR_RED}[\$dp]${COLOR_WHITE}     - creates a docker-compose.proxy.yaml + .env file with linked [\$dp].docker.test"
     echo
@@ -154,6 +154,11 @@ check_for_updates
 
 # watch the environment
 if [[ "dev" == "$ENVIRONMENT" ]]; then
+    # let's see, if a file override for .env was given
+    if [[ 0 != "${#PARAMETERS[@]}" && -n "${PARAMETERS[0]}" ]]; then
+        ENV_FILE="${PARAMETERS[0]}"
+    fi
+
     # test project files
     if ! COMPOSE=$(test_files "$ENV_FILE" "docker-compose"); then
         echo "$COMPOSE"
@@ -166,8 +171,7 @@ if [[ "dev" == "$ENVIRONMENT" ]]; then
 
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
-        docker-compose stop
-        docker-compose rm -f
+        compose_halt "$COMPOSE" "$ENV_FILE"
 
     else
         print_error "Unknown option '$ACTION'..." 1
@@ -175,6 +179,11 @@ if [[ "dev" == "$ENVIRONMENT" ]]; then
     fi
 
 elif [[ "prod" == "$ENVIRONMENT" ]]; then
+    # let's see, if a file override for .env was given
+    if [[ 0 != "${#PARAMETERS[@]}" && -n "${PARAMETERS[0]}" ]]; then
+        ENV_FILE="${PARAMETERS[0]}"
+    fi
+
     # test project files
     if ! COMPOSE=$(test_files "$ENV_FILE" "docker-compose.prod"); then
         echo "$COMPOSE"
@@ -188,8 +197,7 @@ elif [[ "prod" == "$ENVIRONMENT" ]]; then
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
         update_host_files "$ENV_FILE" "remove"
-        docker-compose -f "$COMPOSE" stop
-        docker-compose -f "$COMPOSE" rm -f
+        compose_halt "$COMPOSE" "$ENV_FILE"
 
     else
         print_error "Unknown option '$ACTION'..." 1
@@ -291,6 +299,11 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # start the docker-compose
     elif [[ "start" == "$ACTION" ]]; then
+        # let's see, if a file override for .env was given
+        if [[ 0 != "${#PARAMETERS[@]}" && -n "${PARAMETERS[0]}" ]]; then
+            ENV_FILE="${PARAMETERS[0]}"
+        fi
+
         # test project files
         if ! COMPOSE=$(test_files "$ENV_FILE" "$COMPOSE"); then
             echo "$COMPOSE"
@@ -309,6 +322,11 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
+        # let's see, if a file override for .env was given
+        if [[ 0 != "${#PARAMETERS[@]}" && -n "${PARAMETERS[0]}" ]]; then
+            ENV_FILE="${PARAMETERS[0]}"
+        fi
+
         # test project files
         if ! COMPOSE=$(test_files "$ENV_FILE" "$COMPOSE"); then
             echo "$COMPOSE"
@@ -316,8 +334,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         fi
 
         update_host_files "$ENV_FILE" "remove"
-        docker-compose -f "$COMPOSE" stop
-        docker-compose -f "$COMPOSE" rm -f
+        compose_halt "$COMPOSE" "$ENV_FILE"
 
     # do a dump import for a database container
     elif [[ "db-import" == "$ACTION" || "import" == "$ACTION" || "db" == "$ACTION" ]]; then
