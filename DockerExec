@@ -46,8 +46,10 @@ if [[ ! -f "$PROXY_ENV_FILE" ]]; then
     echo -e "  ${COLOR_WHITE}Make sure to clone the repository via ${COLOR_ORANGE}git clone${COLOR_WHITE} to this machine."
     echo -e "  Then copy the .env.template for a .env and adapt it to your needs."
     echo
-    echo -e "  You should also create a softlink or alias for DockerExec, e.g."
-    echo -e "  ${COLOR_ORANGE}ln -s /path/to/this/docker-proxy/DockerExec /home/\$USER/.local/bin/DockerExec${COLOR_WHITE}"
+    echo -e "  You should also create a softlink for DockerExec, e.g."
+    echo -e "  ${COLOR_ORANGE}ln -s /path/to/this/docker-proxy/DockerExec /home/\$USER/.local/bin/DockerExec"
+    echo
+    echo -e "  ${COLOR_WHITE}See https://sengorius.github.io/repositories/docker-proxy/install.html for further info"
     echo
 
     exit 0
@@ -127,7 +129,12 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     exit 0
 fi
 
-# test existence of docker and docker-compose
+# test existence of git, docker and docker-compose
+command -v git > /dev/null 2>&1 || {
+    print_error "There was no git executable found on this machine. Please install git to make this project work." 1
+    exit 1
+}
+
 command -v docker > /dev/null 2>&1 || {
     print_error "There was no docker executable found on this machine. Did you install docker correctly?" 1
     exit 1
@@ -526,10 +533,6 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
         git checkout --quiet "$LATEST_TAG"
         print_info "Updated the Docker Proxy Stack. Checked out version $LATEST_TAG." 1
-
-        print_info "There are major changes from v1 to $LATEST_TAG. If you upgraded from v1 to v2, please"
-        print_info "follow the upgrade instructions, to get the Docker-Proxy-Stack up and running again!"
-        print_info " >> https://sengorius.github.io/repositories/docker-proxy/upgrade-v2.html"
 
     # shortcut to list all docker containers
     elif [[ "ps" == "$ACTION" ]]; then
