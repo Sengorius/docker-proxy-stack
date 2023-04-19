@@ -133,18 +133,15 @@ command -v docker > /dev/null 2>&1 || {
     exit 1
 }
 
-command -v docker-compose > /dev/null 2>&1 || {
-    print_error "There was no docker-composer executable found on this machine. Did you install docker correctly?"
-    print_error "If you use a differen alias, please create one called 'docker-compose' for your user." 1
+command -v docker-compose > /dev/null 2>&1 || [[ $(docker compose version) == "Docker Compose version v"* ]] || {
+    print_error "There was no 'docker-compose' or 'docker compose' executable found on this machine. Did you install docker correctly?"
+    print_error "If you use a differen alias, please create one called 'docker-compose' for your user or install the latest docker." 1
     exit 1
 }
 
 # add environment variables for docker
-COMPOSE_DOCKER_CLI_BUILD=0
-export COMPOSE_DOCKER_CLI_BUILD
-
-DOCKER_BUILDKIT=0
-export DOCKER_BUILDKIT
+export COMPOSE_DOCKER_CLI_BUILD=0
+export DOCKER_BUILDKIT=0
 
 
 ###

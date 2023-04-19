@@ -111,12 +111,19 @@ function get_nginx_names() {
     exit 0
 }
 
+# decide which executable to user for docker composition
+function get_compose_executable() {
+    command -v docker-compose > /dev/null 2>&1 && echo 'docker-compose' || echo 'docker compose'
+}
+
 # offer a function to start compose and enter bash
 function compose_run() {
     local COMPOSE=$1
     local ENV_FILE=$2
 
-    docker-compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d
+    COMPOSE_EXEC=$(get_compose_executable)
+
+    $COMPOSE_EXEC -f "$COMPOSE" --env-file "$ENV_FILE" up -d
 
     if [[ -n "$ENV_FILE" ]]; then
         update_host_files "$ENV_FILE"
@@ -147,8 +154,10 @@ function compose_halt() {
     local COMPOSE=$1
     local ENV_FILE=$2
 
-    docker-compose -f "$COMPOSE" --env-file "$ENV_FILE" stop
-    docker-compose -f "$COMPOSE" --env-file "$ENV_FILE" rm -f
+    COMPOSE_EXEC=$(get_compose_executable)
+
+    $COMPOSE_EXEC -f "$COMPOSE" --env-file "$ENV_FILE" stop
+    $COMPOSE_EXEC -f "$COMPOSE" --env-file "$ENV_FILE" rm -f
 }
 
 # update any running -web and -app containers /etc/hosts file with the new started IP of the current -web container
