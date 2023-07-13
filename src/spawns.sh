@@ -103,6 +103,12 @@ function enable_spawn_container() {
     if NEXT_PRIO=$(get_next_priority "$MANUAL_PRIO"); then
         ln -s "$SPAWNS_AVAIL_PATH/$FILE_NAME" "$SPAWNS_ENABLED_PATH/$NEXT_PRIO-$FILE_NAME"
         print_info "Enabled spawn $NEXT_PRIO-$FILE_NAME"
+
+        if [[ 1 == $(is_proxy_running) ]]; then
+            start_spawn_container "$NEXT_PRIO-$FILE_NAME"
+            update_host_files_with_proxy > /dev/null
+            publish_host_files "APP" > /dev/null
+        fi
     else
         echo "$NEXT_PRIO"
         exit 1
@@ -121,10 +127,20 @@ function disable_spawn_container() {
     fi
 
     echo "$FILE_EXISTING" | while read -r file; do
+        CON_NAME=$(grep "^CONTAINER_NAME=" "$file" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
+        RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME")
+
+        if [[ -n "$CON_NAME" && -n "$RUNNING_CONTAINER" ]]; then
+            print_info "Stopping container $CON_NAME"
+            docker stop "$CON_NAME" > /dev/null
+            docker rm -f "$CON_NAME" > /dev/null
+        fi
+
         if [[ -h "$file" ]]; then
             rm "$file"
         else
-            mv "$file" "$SPAWNS_AVAIL_PATH/$file"
+            BASE_FILE=$(basename "$file")
+            mv "$file" "$SPAWNS_AVAIL_PATH/$BASE_FILE"
         fi
 
         print_info "Disabled spawn $file"

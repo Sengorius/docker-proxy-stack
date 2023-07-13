@@ -160,6 +160,34 @@ function compose_halt() {
     $COMPOSE_EXEC -f "$COMPOSE" --env-file "$ENV_FILE" rm -f
 }
 
+# starts a single spawn container by reading and importing the file itself
+function start_spawn_container() {
+    local FILENAME="$1"
+    local SPAWN_FILE="$SPAWNS_ENABLED_PATH/$FILENAME"
+    CON_NAME=$(grep "^CONTAINER_NAME=" "$SPAWN_FILE" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
+
+    EXITED_CONTAINER=$(docker ps -aq -f name="$CON_NAME" -f status="exited")
+    if [[ -n "$EXITED_CONTAINER" ]]; then
+        docker start "$CON_NAME"
+    else
+        RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME")
+
+        if [[ -z "$RUNNING_CONTAINER" ]]; then
+            # shellcheck disable=SC1090
+            . "$SPAWN_FILE" > /dev/null
+
+            [[ $(grep "VIRTUAL_HOST" "$SPAWN_FILE") =~ VIRTUAL_HOST=(.*)[[:space:]] ]]
+            CON_HOST=${BASH_REMATCH[1]}
+
+            print_info "Started container $CON_NAME"
+            if [[ -n "$CON_HOST" ]]; then
+                publish_single_entry_hosts_file "$CON_HOST"
+                echo "  https://$CON_HOST"
+            fi
+        fi
+    fi
+}
+
 # update any running -web and -app containers /etc/hosts file with the new started IP of the current -web container
 function update_host_files() {
     local ENV_FILE=$1
