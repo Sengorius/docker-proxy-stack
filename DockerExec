@@ -90,6 +90,9 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo -e "${COLOR_WHITE}Usage:"
     echo -e "  $BN ${COLOR_GREEN}[Environment] ${COLOR_BLUE}[Option] ${COLOR_RED}[\$Parameter(s)] ${COLOR_WHITE}"
     echo
+    echo -e "${COLOR_WHITE}Find help and docs on:"
+    echo -e "  ${COLOR_WHITE}https://sengorius.github.io/repositories/docker-proxy/index.html"
+    echo
     echo -e "${COLOR_WHITE}Environments and their options:"
     echo -e " ${COLOR_GREEN}dev${COLOR_WHITE}: Controls for docker-compose.yml and docker-compose.dev.yml"
     echo -e "    ${COLOR_BLUE}start ${COLOR_RED}[\$f]${COLOR_WHITE}         - executes an extended docker-compose setup with the local file [and given .env file]"
