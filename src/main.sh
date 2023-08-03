@@ -120,6 +120,7 @@ function get_compose_executable() {
 function compose_run() {
     local COMPOSE=$1
     local ENV_FILE=$2
+    local INTERRUPT_START_CONTAINER=${INTERRUPT_START_CONTAINER:-no}
 
     COMPOSE_EXEC=$(get_compose_executable)
 
@@ -131,7 +132,9 @@ function compose_run() {
         local START_CONTAINER
         START_CONTAINER=$(grep "^START_CONTAINER=" "$ENV_FILE" | sed -e 's/^START_CONTAINER=//' | sed -e 's/[[:space:]]*$//')
 
-        if [[ -n "$START_CONTAINER" ]]; then
+        if [[ "no" != "$INTERRUPT_START_CONTAINER" ]]; then
+            echo "Interrupting to start a shell into container."
+        elif [[ -n "$START_CONTAINER" ]]; then
             if [[ "none" != "$START_CONTAINER" ]]; then
                 # retry sh, if bash is not found
                 docker exec -it "${START_CONTAINER}" bash || \
