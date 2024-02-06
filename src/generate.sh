@@ -69,7 +69,8 @@ function generate_docker_compose_project() {
         echo "           VIRTUAL_HOST: ${DOMAIN_PREFIX}.docker.test"
         echo "           VIRTUAL_PORT: 443"
         echo "           VIRTUAL_PROTO: https"
-        echo "       links:"
+        echo "           NGINX_PHP_HOST: \${CON_PREFIX}-app"
+        echo "       depends_on:"
         echo "           - php"
         echo
         echo "    php:"
