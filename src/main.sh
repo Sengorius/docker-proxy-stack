@@ -283,6 +283,7 @@ function update_host_files_with_proxy() {
 # update the /etc/hosts file in any proxy related container with data from .current-hosts file
 function publish_host_files() {
     local HOST_CONTAINER_SUFFIXES=($(echo "$1" | tr "|" "\n"))
+    local IGNORED_CONTAINERS=($(echo "$IGNORED_HOSTS_CONTAINERS" | tr "|" "\n"))
     local FORMATTED_CONTAINERS=
 
     for NEXT_SUFFIX in "${HOST_CONTAINER_SUFFIXES[@]}"; do
@@ -296,7 +297,7 @@ function publish_host_files() {
     PROXY_CONTAINERS=$(docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-')
 
     while read -r CURRENT; do
-        if [[ -n "$CURRENT" ]]; then
+        if [[ -n "$CURRENT" && ! "${IGNORED_CONTAINERS[*]}" =~ "$CURRENT" ]]; then
             CURRENT_CONTENT=$(docker exec -u root "$CURRENT" /bin/sh -c "cat /etc/hosts")
             CURRENT_CONTENT=$(echo "$CURRENT_CONTENT" | sed '/^### DockerExec hosts file update ###/,$d')
             UPDATED_HOSTS="$CURRENT_CONTENT\n### DockerExec hosts file update ###\n$(cat "$TEMP_HOSTS_PATH")"

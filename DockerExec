@@ -14,6 +14,7 @@ export LINUX_HOSTS=/etc/hosts
 export STATUS_FILE_NAME="docker_current.txt"
 export TEMP_HOSTS_FILE=".current-hosts"
 export UPD_FILE_NAME=".last-update"
+export IGNORED_HOSTS_CONTAINERS="${IGNORED_HOSTS_CONTAINERS:-}"
 
 export SRC_DIR="$BASE_DIR/src"
 export PROXY_ENV_FILE="$BASE_DIR/.env"
@@ -246,7 +247,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             start_spawn_container "$file"
         done
 
-        # add all proxy containers (with there IP and hostname) to current hosts file
+        # add all proxy containers (with their IP and hostname) to current hosts file
         update_host_files_with_proxy
         publish_host_files "APP"
 
