@@ -127,6 +127,7 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo -e "    ${COLOR_BLUE}watch-running ${COLOR_RED}\$cn${COLOR_WHITE}  - tests, whether a container with name '\$cn' is running and returns 'TRUE' or 'FALSE' as a string"
     echo -e "    ${COLOR_BLUE}status ${COLOR_RED}[\$fn]${COLOR_WHITE}       - creates a text file [\$fn] in current location that contains a list of images and runninge containers on this machine"
     echo -e "    ${COLOR_BLUE}init-certs${COLOR_WHITE}         - create openssl certificates to be registered in your browsers"
+    echo -e "    ${COLOR_BLUE}add-cert${COLOR_WHITE}           - create addition openssl certificates for multilevel wildcards"
     echo -e "    ${COLOR_BLUE}self-update${COLOR_WHITE}        - update the Docker Proxy Stack with the latest tag"
     echo
 
@@ -502,7 +503,43 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         RSA_EMAIL=$(match_answer_or_default "E-Mail Address []: " "")
 
         generate_openssl_certs "$RSA_KEY_LENGTH" "$RSA_VALID_DAYS" "$RSA_COUNTRY_NAME" "$RSA_STATE_NAME" \
-                               "$RSA_LOCALITY_NAME" "$RSA_ORG_NAME" "$RSA_ORGUNIT_NAME" "$RSA_EMAIL"
+                               "$RSA_LOCALITY_NAME" "$RSA_ORG_NAME" "$RSA_ORGUNIT_NAME" "$RSA_EMAIL" ""
+
+        print_info "Done creating rootCA and certificates in $CERTS_PATH."
+        print_info "Now register the rootCA.crt in your browser." 1
+
+    elif [[ "add-cert" == "$ACTION" || "addcert" == "$ACTION" ]]; then
+        command -v openssl > /dev/null 2>&1 || {
+            print_error "Openssl seems not to be installed on this machine. But it is necessary to generate keys..." 1
+            exit 1
+        }
+
+        # create the certs path, if not done, yet
+        if [[ ! -d "$CERTS_PATH" ]]; then
+            mkdir -p "$CERTS_PATH"
+        fi
+
+        print_info "You are about to create a multilevel wildcard cert. Please answer following questions:"
+
+        # ask the user for some details on the certificate
+        RSA_KEY_LENGTH=$(match_answer_or_default "Define a key size [4096]: " 4096)
+        RSA_VALID_DAYS=$(match_answer_or_default "How long shall this certificate be valid (in days) [3650]: " 3650)
+        RSA_COUNTRY_NAME=$(match_answer_or_default "Country Name (2 letter code) [PS]: " "PS")
+        RSA_STATE_NAME=$(match_answer_or_default "State or Province Name (full name) [Proxy Environment]: " "Proxy Environment")
+        RSA_LOCALITY_NAME=$(match_answer_or_default "Locality Name (some city) [Proxy]: " "Proxy")
+        RSA_ORG_NAME=$(match_answer_or_default "Organization Name (some company) [Docker Proxy Stack]: " "Docker Proxy Stack")
+        RSA_ORGUNIT_NAME=$(match_answer_or_default "Organizational Unit Name (a section) [Docker Proxy Stack]: " "Docker Proxy Stack")
+        RSA_EMAIL=$(match_answer_or_default "E-Mail Address []: " "")
+        RSA_SUBDOMAIN=$(match_answer_or_default "Additional subdomain, e.g. 'example' to create '*.example.docker.test' []: " "")
+
+        if [[ -z "$RSA_SUBDOMAIN" ]]; then
+            print_error "You need to provide a subdomain to create a multilevel wildcard cert!" 1
+            exit 1
+        fi
+
+        generate_openssl_certs "$RSA_KEY_LENGTH" "$RSA_VALID_DAYS" "$RSA_COUNTRY_NAME" "$RSA_STATE_NAME" \
+                               "$RSA_LOCALITY_NAME" "$RSA_ORG_NAME" "$RSA_ORGUNIT_NAME" "$RSA_EMAIL" \
+                               "$RSA_SUBDOMAIN"
 
         print_info "Done creating rootCA and certificates in $CERTS_PATH."
         print_info "Now register the rootCA.crt in your browser." 1
