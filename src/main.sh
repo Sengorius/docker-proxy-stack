@@ -179,7 +179,7 @@ function start_spawn_container() {
             # shellcheck disable=SC1090
             . "$SPAWN_FILE" > /dev/null
 
-            [[ $(grep "VIRTUAL_HOST" "$SPAWN_FILE") =~ VIRTUAL_HOST=(.*)[[:space:]] ]]
+            [[ $(grep "VIRTUAL_HOST" "$SPAWN_FILE") =~ VIRTUAL_HOST=([^\" \\]+) ]]
             CON_HOST=${BASH_REMATCH[1]}
 
             print_info "Started container $CON_NAME"
