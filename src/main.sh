@@ -15,7 +15,10 @@ function print_hosts() {
 
             if [[ -n "$line" && -n "${BASH_REMATCH[1]}" ]]; then
                 publish_single_entry_hosts_file "${BASH_REMATCH[1]}"
-                echo "  https://${BASH_REMATCH[1]}"
+
+                for addr in $(echo "${BASH_REMATCH[1]}" | tr -d '[:space:]' | tr "," "\n"); do
+                    echo "  https://$addr"
+                done
             fi
         done
     fi
@@ -24,6 +27,7 @@ function print_hosts() {
 # append host to hosts file, if not yet included
 function publish_single_entry_hosts_file() {
     local ENTRY=$1
+    ENTRY=$(echo "$ENTRY" | tr ',' ' ')
 
     local HOSTS_HAS_FILE
     HOSTS_HAS_FILE=$(grep -Ei "^127.0.0.1\s+$ENTRY" "$LINUX_HOSTS")
