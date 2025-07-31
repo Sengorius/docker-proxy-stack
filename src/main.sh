@@ -141,16 +141,24 @@ function compose_run() {
         elif [[ -n "$START_CONTAINER" ]]; then
             if [[ "none" != "$START_CONTAINER" ]]; then
                 # retry sh, if bash is not found
-                docker exec -it "${START_CONTAINER}" bash || \
-                docker exec -it "${START_CONTAINER}" sh
+                if docker exec -it "$START_CONTAINER" test -x /bin/bash; then
+                    docker exec -it "$START_CONTAINER" bash
+                else
+                    print_info "/bin/bash is not available, using /bin/sh instead"
+                    docker exec -it "$START_CONTAINER" sh
+                fi
             fi
         else
             local CON_NAMES=($(get_container_names "$ENV_FILE"))
 
             if [[ "0" != "${#CON_NAMES[@]}" ]]; then
                 # retry sh, if bash is not found
-                docker exec -it "${CON_NAMES[0]}" bash || \
-                docker exec -it "${CON_NAMES[0]}" sh
+                if docker exec -it "${CON_NAMES[0]}" test -x /bin/bash; then
+                    docker exec -it "${CON_NAMES[0]}" bash
+                else
+                    print_info "/bin/bash is not available, using /bin/sh instead"
+                    docker exec -it "${CON_NAMES[0]}" sh
+                fi
             fi
         fi
     fi
