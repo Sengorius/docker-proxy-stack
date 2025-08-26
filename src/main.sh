@@ -11,15 +11,21 @@ function print_hosts() {
     if [[ -n "$HOSTS" ]]; then
         print_info "Following hosts have been booted:"
         echo "$HOSTS" | while read -r line; do
+            # skip, if line is empty
+            [[ -z "$line" ]] && continue
+
+            # skip, if the line contains commented code
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+            # check for a list of domains
             [[ "$line" =~ VIRTUAL_HOST.[[:space:]]*(.*)$ ]]
+            [[ -z "${BASH_REMATCH[1]}" ]] && continue
 
-            if [[ -n "$line" && -n "${BASH_REMATCH[1]}" ]]; then
-                publish_single_entry_hosts_file "${BASH_REMATCH[1]}"
+            publish_single_entry_hosts_file "${BASH_REMATCH[1]}"
 
-                for addr in $(echo "${BASH_REMATCH[1]}" | tr -d '[:space:]' | tr "," "\n"); do
-                    echo "  https://$addr"
-                done
-            fi
+            for addr in $(echo "${BASH_REMATCH[1]}" | tr -d '[:space:]' | tr "," "\n"); do
+                echo "  https://$addr"
+            done
         done
     fi
 }
