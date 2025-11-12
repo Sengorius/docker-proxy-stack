@@ -412,7 +412,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
     # remove all images that are no more in use
     elif [[ "cleanup" == "$ACTION" ]]; then
-        CLEANABLE_CONTAINERS=$(docker images | grep "<none>" | awk "{print \$3}")
+        CLEANABLE_CONTAINERS=$(docker images --filter "dangling=true" -q)
         if [[ -n "$CLEANABLE_CONTAINERS" ]]; then
             # shellcheck disable=SC2086
             docker rmi -f $CLEANABLE_CONTAINERS
@@ -448,7 +448,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
         # create the full path and ask for confirmation
         STATUS_PATH="$CURRENT_DIR/$REAL_STATUS_FILE"
-        read -r -p "A file $REAL_STATUS_FILE will be created (or override existing). Continue? [Y/n]" input
+        read -r -p "A file $REAL_STATUS_FILE will be created (or override existing). Continue? [y/n]" input
 
         case $input in
             [yY][eE][sS]|[yY])
@@ -465,7 +465,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
                 echo "" >> "$STATUS_PATH"
                 echo "### Currently existing images" >> "$STATUS_PATH"
                 echo "" >> "$STATUS_PATH"
-                docker images >> "$STATUS_PATH"
+                docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.Size}}" >> "$STATUS_PATH"
                 echo "" >> "$STATUS_PATH"
                 ;;
             *)
