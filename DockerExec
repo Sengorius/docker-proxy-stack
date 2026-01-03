@@ -9,6 +9,9 @@ export BASE_DIR
 CURRENT_DIR=$(pwd)
 export CURRENT_DIR
 
+DE_ENGINE=$(command -v podman > /dev/null 2>&1 && echo "podman" || echo "docker")
+export DE_ENGINE
+
 export ENV_FILE="${DEFAULT_ENV_FILE:-.env}"
 export LINUX_HOSTS=/etc/hosts
 export STATUS_FILE_NAME="docker_current.txt"
@@ -135,18 +138,19 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     exit 0
 fi
 
-# test existence of git, docker and docker-compose
+# test existence of git, docker and docker-compose (or podman + podman-compose)
 command -v git > /dev/null 2>&1 || {
     print_error "There was no git executable found on this machine. Please install git to make this project work." 1
     exit 1
 }
 
-command -v docker > /dev/null 2>&1 || {
-    print_error "There was no docker executable found on this machine. Did you install docker correctly?" 1
+command -v docker > /dev/null 2>&1 || command -v podman > /dev/null 2>&1 || {
+    print_error "There was no docker or podman executable found on this machine. Did you install it correctly?" 1
     exit 1
 }
 
-command -v docker-compose > /dev/null 2>&1 || [[ $(docker compose version) == "Docker Compose version v"* ]] || {
+command -v docker-compose > /dev/null 2>&1 || command -v podman-compose > /dev/null 2>&1 || \
+[[ $(docker compose version) == "Docker Compose version v"* ]] || {
     print_error "There was no 'docker-compose' or 'docker compose' executable found on this machine. Did you install docker correctly?"
     print_error "If you use a differen alias, please create one called 'docker-compose' for your user or install the latest docker." 1
     exit 1
@@ -227,8 +231,14 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         fi
 
         # first, test if the network exists and create, if not
-        if ! docker network ls | grep -q "$NETWORK_NAME"; then
-            docker network create --attachable "$NETWORK_NAME"
+        if ! $DE_ENGINE network ls | grep -q "$NETWORK_NAME"; then
+            NETWORK_FLAGS=''
+
+            if [[ "$DE_ENGINE" == "docker" ]]; then
+                NETWORK_FLAGS='--attachable'
+            fi
+
+            $DE_ENGINE network create $NETWORK_FLAGS "$NETWORK_NAME"
             print_info "Network $NETWORK_NAME was created successfully!"
         fi
 
@@ -258,24 +268,24 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # stop and remove the proxy
     elif [[ "finish" == "$ACTION" ]]; then
-        PROXY_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f name="proxy-" -f status="running")
+        PROXY_CONTAINERS=$($DE_ENGINE ps -a --format "{{ .Names }}" -f name="proxy-" -f status="running")
         if [[ -n "$PROXY_CONTAINERS" ]]; then
             print_info "Shutting down proxy..."
 
             for container in $PROXY_CONTAINERS; do
-                docker stop "$container" > /dev/null
+                $DE_ENGINE stop "$container" > /dev/null
                 echo "  - stopped $container"
             done
         else
             print_info "The Proxy is not started. No containers to stop."
         fi
 
-        STOPPED_PROXY_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f name="proxy-" -f status="exited")
+        STOPPED_PROXY_CONTAINERS=$($DE_ENGINE ps -a --format "{{ .Names }}" -f name="proxy-" -f status="exited")
         if [[ -n "$STOPPED_PROXY_CONTAINERS" ]]; then
             print_info "Removing proxy containers..."
 
             for container in $STOPPED_PROXY_CONTAINERS; do
-                docker rm -f "$container" > /dev/null
+                $DE_ENGINE rm -f "$container" > /dev/null
                 echo "  - removed $container"
             done
         fi
@@ -386,13 +396,13 @@ elif [[ "spawn" == "$ENVIRONMENT" ]]; then
 elif [[ "do" == "$ENVIRONMENT" ]]; then
     # stop, then remove all containers
     if [[ "finish" == "$ACTION" ]]; then
-        REMOVABLE_CONTAINERS=$(docker ps -aq)
+        REMOVABLE_CONTAINERS=$($DE_ENGINE ps -aq)
         if [[ -n "$REMOVABLE_CONTAINERS" ]]; then
             print_info "Shutting down..."
             # shellcheck disable=SC2086
-            docker stop $REMOVABLE_CONTAINERS > /dev/null
+            $DE_ENGINE stop $REMOVABLE_CONTAINERS > /dev/null
             # shellcheck disable=SC2086
-            docker rm -f $REMOVABLE_CONTAINERS > /dev/null
+            $DE_ENGINE rm -f $REMOVABLE_CONTAINERS > /dev/null
         else
             print_info "No containers to stop."
         fi
@@ -403,20 +413,20 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
     # remove all stopped containers
     elif [[ "remove" == "$ACTION" ]]; then
-        EXITED_CONTAINERS=$(docker ps -aq -f status="exited")
+        EXITED_CONTAINERS=$($DE_ENGINE ps -aq -f status="exited")
         if [[ -n "$EXITED_CONTAINERS" ]]; then
             # shellcheck disable=SC2086
-            docker rm -f $EXITED_CONTAINERS
+            $DE_ENGINE rm -f $EXITED_CONTAINERS
         else
             print_info "No containers to remove."
         fi
 
     # remove all images that are no more in use
     elif [[ "cleanup" == "$ACTION" ]]; then
-        CLEANABLE_CONTAINERS=$(docker images --filter "dangling=true" -q)
+        CLEANABLE_CONTAINERS=$($DE_ENGINE images --filter "dangling=true" -q)
         if [[ -n "$CLEANABLE_CONTAINERS" ]]; then
             # shellcheck disable=SC2086
-            docker rmi -f $CLEANABLE_CONTAINERS
+            $DE_ENGINE rmi -f $CLEANABLE_CONTAINERS
         else
             print_info "No unfinished build layers to remove."
         fi
@@ -430,7 +440,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
             exit 1
         fi
 
-        STATE=$(docker ps -a --format "table {{.Status}}\t{{.Names}}" | grep "$CONTAINER")
+        STATE=$($DE_ENGINE ps -a --format "table {{.Status}}\t{{.Names}}" | grep "$CONTAINER")
 
         if [[ $STATE == *"Up "* ]]; then
             echo "TRUE"
@@ -438,7 +448,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
             echo "FALSE"
         fi
 
-    # print the current state of Docker into a file
+    # print the current state of Docker/Podman into a file
     elif [[ "status" == "$ACTION" ]]; then
         # let's see, if a file name was given
         REAL_STATUS_FILE="$STATUS_FILE_NAME"
@@ -461,12 +471,12 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
                 # print out status info into a static file
                 echo "### Currently running containers" >> "$STATUS_PATH"
                 echo "" >> "$STATUS_PATH"
-                docker ps -a --format "table {{.Image}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}" >> "$STATUS_PATH"
+                $DE_ENGINE ps -a --format "table {{.Image}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}" >> "$STATUS_PATH"
                 echo "" >> "$STATUS_PATH"
                 echo "" >> "$STATUS_PATH"
                 echo "### Currently existing images" >> "$STATUS_PATH"
                 echo "" >> "$STATUS_PATH"
-                docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.Size}}" >> "$STATUS_PATH"
+                $DE_ENGINE images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.Size}}" >> "$STATUS_PATH"
                 echo "" >> "$STATUS_PATH"
                 ;;
             *)
@@ -561,7 +571,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         PS_COLUMNS_FORMATTED=$(join_by '}}\t{{.' $PS_COLUMNS)
         PS_FORMAT="table {{.$PS_COLUMNS_FORMATTED}}"
 
-        docker ps -a --format "$PS_FORMAT"
+        $DE_ENGINE ps -a --format "$PS_FORMAT"
 
     elif [[ "images" == "$ACTION" ]]; then
         IMAGES_COLUMNS=${DOCKER_IMAGES_COLUMNS:-Repository|Tag|Size|CreatedSince}

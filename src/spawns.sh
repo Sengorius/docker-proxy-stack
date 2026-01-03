@@ -71,7 +71,7 @@ function ensure_proxy_main() {
             echo
             echo "CONTAINER_NAME=\"proxy-main\""
             echo
-            echo "docker run --tty --detach \\"
+            echo "\$DE_ENGINE run --tty --detach \\"
             echo "    --name \"\${CONTAINER_NAME}\" \\"
             echo "    --publish \"80:80\" \\"
             echo "    --publish \"443:443\" \\"
@@ -127,12 +127,12 @@ function disable_spawn_container() {
 
     echo "$FILE_EXISTING" | while read -r file; do
         CON_NAME=$(grep "^CONTAINER_NAME=" "$file" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
-        RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME")
+        RUNNING_CONTAINER=$($DE_ENGINE ps -aq -f name="$CON_NAME")
 
         if [[ -n "$CON_NAME" && -n "$RUNNING_CONTAINER" ]]; then
             print_info "Stopping container $CON_NAME"
-            docker stop "$CON_NAME" > /dev/null
-            docker rm -f "$CON_NAME" > /dev/null
+            $DE_ENGINE stop "$CON_NAME" > /dev/null
+            $DE_ENGINE rm -f "$CON_NAME" > /dev/null
         fi
 
         if [[ -h "$file" ]]; then
@@ -188,7 +188,7 @@ function spawn_container() {
             echo
             echo "CONTAINER_NAME=\"$PROXY_NAME\""
             echo
-            echo "docker run --tty --detach \\"
+            echo "\$DE_ENGINE run --tty --detach \\"
             echo "    --name \"\${CONTAINER_NAME}\" \\"
             [ -n "$ADDITIONAL_VOLUMES" ] && (echo "$ADDITIONAL_VOLUMES" | awk '{print "    --volume \""$1"\" \\"}')
             echo "    --network \"\${NETWORK_NAME}\" \\"

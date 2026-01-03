@@ -27,7 +27,7 @@ function test_files() {
 # test if the proxy setup was already initialized
 function is_proxy_running() {
     local STATUS
-    STATUS=$(docker ps -a --format "{{ .Names }}" -f status="running" -f name="proxy-main")
+    STATUS=$($DE_ENGINE ps -a --format "{{ .Names }}" -f status="running" -f name="proxy-main")
 
     if [[ -z "$STATUS" ]]; then
         echo 0

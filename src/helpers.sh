@@ -138,7 +138,7 @@ function import_to_database_container() {
         exit 1
     fi
 
-    RUNNING_APP=$(docker ps -aq -f name="$CONTAINER_NAME" -f status="running")
+    RUNNING_APP=$($DE_ENGINE ps -aq -f name="$CONTAINER_NAME" -f status="running")
     if [[ -z "$RUNNING_APP" ]]; then
         print_error "The container $CONTAINER_NAME is not up and running!" 1
         exit 1
@@ -182,7 +182,7 @@ function import_to_database_container() {
     esac
 
     echo
-    docker exec -it "$CONTAINER_NAME" bash -c "$COMMAND" && \
+    $DE_ENGINE exec -it "$CONTAINER_NAME" bash -c "$COMMAND" && \
     print_info "Import complete." 1
 }
 

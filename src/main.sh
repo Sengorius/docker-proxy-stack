@@ -80,7 +80,7 @@ function get_container_names() {
 
     if [[ -n "$APP_PREFIX" ]]; then
         local RUNNING_APPS=
-        RUNNING_APPS=$(docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)($ACF)$" -f status="running")
+        RUNNING_APPS=$($DE_ENGINE ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)($ACF)$" -f status="running")
         echo "$RUNNING_APPS"
 
     elif [[ -n "$APP_NAME" ]]; then
@@ -107,7 +107,7 @@ function get_nginx_names() {
 
     if [[ -n "$APP_PREFIX" ]]; then
         local RUNNING_APPS
-        RUNNING_APPS=$(docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)($WCF)$" -f status="running")
+        RUNNING_APPS=$($DE_ENGINE ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)($WCF)$" -f status="running")
         echo "$RUNNING_APPS"
 
     elif [[ -n "$APP_NAME" ]]; then
@@ -145,11 +145,11 @@ function compose_run() {
         elif [[ -n "$START_CONTAINER" ]]; then
             if [[ "none" != "$START_CONTAINER" ]]; then
                 # retry sh, if bash is not found
-                if docker exec -it "$START_CONTAINER" test -x /bin/bash; then
-                    docker exec -it "$START_CONTAINER" bash
+                if $DE_ENGINE exec -it "$START_CONTAINER" test -x /bin/bash; then
+                    $DE_ENGINE exec -it "$START_CONTAINER" bash
                 else
                     print_info "/bin/bash is not available, using /bin/sh instead"
-                    docker exec -it "$START_CONTAINER" sh
+                    $DE_ENGINE exec -it "$START_CONTAINER" sh
                 fi
             fi
         else
@@ -157,11 +157,11 @@ function compose_run() {
 
             if [[ "0" != "${#CON_NAMES[@]}" ]]; then
                 # retry sh, if bash is not found
-                if docker exec -it "${CON_NAMES[0]}" test -x /bin/bash; then
-                    docker exec -it "${CON_NAMES[0]}" bash
+                if $DE_ENGINE exec -it "${CON_NAMES[0]}" test -x /bin/bash; then
+                    $DE_ENGINE exec -it "${CON_NAMES[0]}" bash
                 else
                     print_info "/bin/bash is not available, using /bin/sh instead"
-                    docker exec -it "${CON_NAMES[0]}" sh
+                    $DE_ENGINE exec -it "${CON_NAMES[0]}" sh
                 fi
             fi
         fi
@@ -185,11 +185,11 @@ function start_spawn_container() {
     local SPAWN_FILE="$SPAWNS_ENABLED_PATH/$FILENAME"
     CON_NAME=$(grep "^CONTAINER_NAME=" "$SPAWN_FILE" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
 
-    EXITED_CONTAINER=$(docker ps -aq -f name="$CON_NAME" -f status="exited")
+    EXITED_CONTAINER=$($DE_ENGINE ps -aq -f name="$CON_NAME" -f status="exited")
     if [[ -n "$EXITED_CONTAINER" ]]; then
-        docker start "$CON_NAME"
+        $DE_ENGINE start "$CON_NAME"
     else
-        RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME")
+        RUNNING_CONTAINER=$($DE_ENGINE ps -aq -f name="$CON_NAME")
 
         if [[ -z "$RUNNING_CONTAINER" ]]; then
             # shellcheck disable=SC1090
@@ -222,13 +222,13 @@ function update_host_files() {
 
     for WEB_CON in "${WEB_CON_NAMES[@]}"; do
         local WEB_IP
-        WEB_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$WEB_CON")
+        WEB_IP=$($DE_ENGINE inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$WEB_CON")
 
         local WEB_HOST
-        WEB_HOST=$(docker inspect --format '{{ .Config.Env }}' "$WEB_CON" | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//')
+        WEB_HOST=$($DE_ENGINE inspect --format '{{ .Config.Env }}' "$WEB_CON" | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//')
 
         local WEB_HASH
-        WEB_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$WEB_CON")
+        WEB_HASH=$($DE_ENGINE inspect --format '{{ .Config.Hostname }}' "$WEB_CON")
 
         SHALL_BE_PUBLISHED=yes
 
@@ -245,10 +245,10 @@ function update_host_files() {
 
     for APP_CON in "${APP_CON_NAMES[@]}"; do
         local APP_IP
-        APP_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$APP_CON")
+        APP_IP=$($DE_ENGINE inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$APP_CON")
 
         local APP_HASH
-        APP_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$APP_CON")
+        APP_HASH=$($DE_ENGINE inspect --format '{{ .Config.Hostname }}' "$APP_CON")
 
         SHALL_BE_PUBLISHED=yes
 
@@ -275,18 +275,18 @@ function update_host_files() {
 
 # update the hosts file with running proxy containers
 function update_host_files_with_proxy() {
-    local CON_NAMES=($(docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-'))
+    local CON_NAMES=($($DE_ENGINE ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-'))
 
     if [[ "0" != "${#CON_NAMES[@]}" ]]; then
         for CON in "${CON_NAMES[@]}"; do
             local WEB_IP
-            WEB_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$CON")
+            WEB_IP=$($DE_ENGINE inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$CON")
 
             local WEB_HOST
-            WEB_HOST=$(docker inspect --format '{{ .Config.Env }}' "$CON" | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//')
+            WEB_HOST=$($DE_ENGINE inspect --format '{{ .Config.Env }}' "$CON" | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//')
 
             local WEB_HASH
-            WEB_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$CON")
+            WEB_HASH=$($DE_ENGINE inspect --format '{{ .Config.Hostname }}' "$CON")
 
             # add the IP => HOST to the temporary file
             if [[ -n "$WEB_IP" ]] && ! grep "$WEB_IP" "$TEMP_HOSTS_PATH" && [[ -n "$WEB_HOST" || -n "$WEB_HASH" ]]; then
@@ -309,15 +309,15 @@ function publish_host_files() {
     local COUNTER=0
     local TARGET_CONTAINERS
     local PROXY_CONTAINERS
-    TARGET_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f status="running"${FORMATTED_CONTAINERS})
-    PROXY_CONTAINERS=$(docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-')
+    TARGET_CONTAINERS=$($DE_ENGINE ps -a --format "{{ .Names }}" -f status="running"${FORMATTED_CONTAINERS})
+    PROXY_CONTAINERS=$($DE_ENGINE ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-')
 
     while read -r CURRENT; do
         if [[ -n "$CURRENT" && ! "${IGNORED_CONTAINERS[*]}" =~ "$CURRENT" ]]; then
-            CURRENT_CONTENT=$(docker exec -u root "$CURRENT" /bin/sh -c "cat /etc/hosts")
+            CURRENT_CONTENT=$($DE_ENGINE exec -u root "$CURRENT" /bin/sh -c "cat /etc/hosts")
             CURRENT_CONTENT=$(echo "$CURRENT_CONTENT" | sed '/^### DockerExec hosts file update ###/,$d')
             UPDATED_HOSTS="$CURRENT_CONTENT\n### DockerExec hosts file update ###\n$(cat "$TEMP_HOSTS_PATH")"
-            docker exec -u root "$CURRENT" /bin/sh -c "echo '$UPDATED_HOSTS' > /etc/hosts"
+            $DE_ENGINE exec -u root "$CURRENT" /bin/sh -c "echo '$UPDATED_HOSTS' > /etc/hosts"
             COUNTER=$((COUNTER+1))
         fi
     done <<< "$(printf "%s\n%s" "$TARGET_CONTAINERS" "$PROXY_CONTAINERS")"
@@ -334,10 +334,10 @@ function attach_to_logs() {
         for file in $(ls "$SPAWNS_ENABLED_PATH"); do
             SPAWN_FILE="$SPAWNS_ENABLED_PATH/$file"
             CON_NAME=$(grep "^CONTAINER_NAME=" "$SPAWN_FILE" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
-            RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME" -f status="running")
+            RUNNING_CONTAINER=$($DE_ENGINE ps -aq -f name="$CON_NAME" -f status="running")
 
             if [[ -n "$RUNNING_CONTAINER" ]]; then
-                DOCKER_LOGS="docker logs --details -f $CON_NAME & $DOCKER_LOGS"
+                DOCKER_LOGS="$DE_ENGINE logs --details -f $CON_NAME & $DOCKER_LOGS"
             fi
         done
 
