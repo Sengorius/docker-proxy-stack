@@ -83,6 +83,7 @@ function ensure_proxy_main() {
             echo "    --volume \"\${DATA_PATH}:/var/data\" \\"
             echo "    --network \"\${NETWORK_NAME}\" \\"
             echo "    --restart unless-stopped \\"
+            echo "    --env \"TRUST_DOWNSTREAM_PROXY=false\" \\"
             echo "    jwilder/nginx-proxy:alpine"
         } > "$SPAWNS_ENABLED_PATH/000-main"
     fi
