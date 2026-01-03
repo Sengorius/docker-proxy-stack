@@ -121,7 +121,13 @@ function get_nginx_names() {
 
 # decide which executable to user for docker composition
 function get_compose_executable() {
-    command -v docker-compose > /dev/null 2>&1 && echo 'docker-compose' || echo 'docker compose'
+    if command -v podman-compose > /dev/null 2>&1; then
+        echo 'podman compose'
+    elif command -v docker-compose > /dev/null 2>&1; then
+        echo 'docker-compose'
+    else
+        echo 'docker compose'
+    fi
 }
 
 # offer a function to start compose and enter bash
@@ -175,8 +181,7 @@ function compose_halt() {
 
     COMPOSE_EXEC=$(get_compose_executable)
 
-    $COMPOSE_EXEC -f "$COMPOSE" --env-file "$ENV_FILE" stop
-    $COMPOSE_EXEC -f "$COMPOSE" --env-file "$ENV_FILE" rm -f
+    $COMPOSE_EXEC -f "$COMPOSE" --env-file "$ENV_FILE" down -t 30
 }
 
 # starts a single spawn container by reading and importing the file itself

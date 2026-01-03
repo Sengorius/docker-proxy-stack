@@ -73,6 +73,8 @@ function ensure_proxy_main() {
             echo
             echo "\$DE_ENGINE run --tty --detach \\"
             echo "    --name \"\${CONTAINER_NAME}\" \\"
+            echo "    --network \"\${NETWORK_NAME}\" \\"
+            echo "    --restart unless-stopped \\"
             echo "    --publish \"80:80\" \\"
             echo "    --publish \"443:443\" \\"
             echo "    --volume \"\${BASE_DIR}/certs:/etc/nginx/certs\" \\"
@@ -81,10 +83,8 @@ function ensure_proxy_main() {
             echo "    --volume \"\${BASE_DIR}/vhost.d:/etc/nginx/vhost.d\" \\"
             echo "    --volume \"\${SOCK_PATH}:/tmp/docker.sock:ro\" \\"
             echo "    --volume \"\${DATA_PATH}:/var/data\" \\"
-            echo "    --network \"\${NETWORK_NAME}\" \\"
-            echo "    --restart unless-stopped \\"
             echo "    --env \"TRUST_DOWNSTREAM_PROXY=false\" \\"
-            echo "    jwilder/nginx-proxy:alpine"
+            echo "    docker.io/jwilder/nginx-proxy:alpine"
         } > "$SPAWNS_ENABLED_PATH/000-main"
     fi
 }

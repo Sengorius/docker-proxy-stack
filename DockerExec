@@ -38,6 +38,7 @@ source "$PROXY_ENV_FILE"
 . "$SRC_DIR/generate.sh"
 . "$SRC_DIR/spawns.sh"
 . "$SRC_DIR/main.sh"
+. "$SRC_DIR/podman.sh"
 
 
 ###
@@ -241,6 +242,10 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             $DE_ENGINE network create $NETWORK_FLAGS "$NETWORK_NAME"
             print_info "Network $NETWORK_NAME was created successfully!"
         fi
+
+        # check for podman engine, enable the socket and allow to use the necessary ports
+        podman_enable_socket_for_current_user
+        podman_allow_lower_ports
 
         # ensure the proxy main container is enabled
         ensure_proxy_main
