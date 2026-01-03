@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 # simply add leading zeros until at least 3 digits in total
 function prepend_zero() {
     local NUMBER=$1

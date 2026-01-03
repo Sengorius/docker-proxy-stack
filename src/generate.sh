@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 # does the openssl certificate generation for the proxy to work with SSL
 function generate_openssl_certs() {
     local RSA_COMMAND=openssl

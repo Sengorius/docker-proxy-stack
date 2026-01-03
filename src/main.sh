@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 # offer a function to print found hosts as a list
 # and also include into the hosts file, if not done yet
 function print_hosts() {
