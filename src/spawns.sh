@@ -205,7 +205,7 @@ function spawn_container() {
 
 # spawn SMT mailcatcher file
 function spawn_smt_mailcatcher() {
-    if spawn_container "mailcatcher" "sengorius/proxy-mailcatcher:latest" "VIRTUAL_PORT=443"; then
+    if spawn_container "mailcatcher" "docker.io/sengorius/proxy-mailcatcher:latest" "VIRTUAL_PORT=443"; then
         print_info "Created a spawn with Skript-Manufaktur mailcatcher image"
     fi
 }
