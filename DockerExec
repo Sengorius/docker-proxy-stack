@@ -121,6 +121,7 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo
     echo -e " ${COLOR_GREEN}do${COLOR_WHITE}: Other tools"
     echo -e "    ${COLOR_BLUE}ps${COLOR_WHITE}                 - lists all containers like 'docker ps -a'"
+    echo -e "    ${COLOR_BLUE}images${COLOR_WHITE}             - lists all local images like 'docker image ls -a'"
     echo -e "    ${COLOR_BLUE}remove${COLOR_WHITE}             - does a 'docker rm' to all containers that have stopped running"
     echo -e "    ${COLOR_BLUE}cleanup${COLOR_WHITE}            - deletes all docker images, that have a <none> as tag name or image id"
     echo -e "    ${COLOR_BLUE}finish${COLOR_WHITE}             - stops and removes all current containers, like 'docker stop && docker rm'"
@@ -561,6 +562,14 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         PS_FORMAT="table {{.$PS_COLUMNS_FORMATTED}}"
 
         docker ps -a --format "$PS_FORMAT"
+
+    elif [[ "images" == "$ACTION" ]]; then
+        IMAGES_COLUMNS=${DOCKER_IMAGES_COLUMNS:-Repository|Tag|Size|CreatedSince}
+        IMAGES_COLUMNS=${IMAGES_COLUMNS//|/ }
+        IMAGES_COLUMNS_FORMATTED=$(join_by '}}\t{{.' $IMAGES_COLUMNS)
+        IMAGES_FORMAT="table {{.$IMAGES_COLUMNS_FORMATTED}}"
+
+        docker images --all --format "$IMAGES_FORMAT"
 
     else
         print_error "Unknown option '$ACTION'..." 1
