@@ -583,8 +583,9 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         IMAGES_COLUMNS=${IMAGES_COLUMNS//|/ }
         IMAGES_COLUMNS_FORMATTED=$(join_by '}}\t{{.' $IMAGES_COLUMNS)
         IMAGES_FORMAT="table {{.$IMAGES_COLUMNS_FORMATTED}}"
+        IMAGES_FLAGS=$([[ "$DE_ENGINE" == "podman" ]] && echo '' || echo ' --all')
 
-        docker images --all --format "$IMAGES_FORMAT"
+        $DE_ENGINE images $IMAGES_FLAGS --format "$IMAGES_FORMAT"
 
     else
         print_error "Unknown option '$ACTION'..." 1
