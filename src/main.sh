@@ -68,18 +68,13 @@ function get_container_suffixes() {
 # offer a function that tries to find the current -app container name
 function get_container_names() {
     local ENV_FILE=$1
+    local APP_PREFIX APP_NAME ACF RUNNING_APPS
 
-    local APP_PREFIX
     APP_PREFIX=$(grep "^CON_PREFIX=" "$ENV_FILE" | sed -e 's/^CON_PREFIX=//' | sed -e 's/[[:space:]]*$//')
-
-    local APP_NAME
     APP_NAME=$(grep "^CON_NAME=" "$ENV_FILE" | sed -e 's/^CON_NAME=//' | sed -e 's/[[:space:]]*$//')
-
-    local ACF
     ACF=$(get_container_suffixes "APP")
 
     if [[ -n "$APP_PREFIX" ]]; then
-        local RUNNING_APPS=
         RUNNING_APPS=$(docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)($ACF)$" -f status="running")
         echo "$RUNNING_APPS"
 
@@ -88,25 +83,18 @@ function get_container_names() {
     else
         echo ""
     fi
-
-    exit 0
 }
 
 # offer a function that tries to find the current -web container name
 function get_nginx_names() {
     local ENV_FILE=$1
+    local APP_PREFIX APP_NAME WCF RUNNING_APPS
 
-    local APP_PREFIX
     APP_PREFIX=$(grep "^CON_PREFIX=" "$ENV_FILE" | sed -e 's/^CON_PREFIX=//' | sed -e 's/[[:space:]]*$//')
-
-    local APP_NAME
     APP_NAME=$(grep "^CON_NAME=" "$ENV_FILE" | sed -e 's/^CON_NAME=//' | sed -e 's/[[:space:]]*$//')
-
-    local WCF
     WCF=$(get_container_suffixes "WEB")
 
     if [[ -n "$APP_PREFIX" ]]; then
-        local RUNNING_APPS
         RUNNING_APPS=$(docker ps -aq -f name="^$APP_PREFIX((?:-|_).+)*(-|_)($WCF)$" -f status="running")
         echo "$RUNNING_APPS"
 
@@ -115,8 +103,6 @@ function get_nginx_names() {
     else
         echo ""
     fi
-
-    exit 0
 }
 
 # decide which executable to user for docker composition
@@ -129,6 +115,7 @@ function compose_run() {
     local COMPOSE=$1
     local ENV_FILE=$2
     local INTERRUPT_START_CONTAINER=${INTERRUPT_START_CONTAINER:-no}
+    local COMPOSE_EXEC START_CONTAINER CON_NAMES
 
     COMPOSE_EXEC=$(get_compose_executable)
 
@@ -137,7 +124,6 @@ function compose_run() {
     if [[ -n "$ENV_FILE" ]]; then
         update_host_files "$ENV_FILE"
 
-        local START_CONTAINER
         START_CONTAINER=$(grep "^START_CONTAINER=" "$ENV_FILE" | sed -e 's/^START_CONTAINER=//' | sed -e 's/[[:space:]]*$//')
 
         if [[ "no" != "$INTERRUPT_START_CONTAINER" ]]; then
@@ -153,7 +139,7 @@ function compose_run() {
                 fi
             fi
         else
-            local CON_NAMES=($(get_container_names "$ENV_FILE"))
+            CON_NAMES=($(get_container_names "$ENV_FILE"))
 
             if [[ "0" != "${#CON_NAMES[@]}" ]]; then
                 # retry sh, if bash is not found
@@ -172,6 +158,7 @@ function compose_run() {
 function compose_halt() {
     local COMPOSE=$1
     local ENV_FILE=$2
+    local COMPOSE_EXEC
 
     COMPOSE_EXEC=$(get_compose_executable)
 
@@ -236,6 +223,9 @@ function update_host_files() {
         # add the IP => HOST to the temporary file
         elif [[ -n "$WEB_IP" && -n "$WEB_HOST" ]] && ! grep -q "$WEB_HOST" "$TEMP_HOSTS_PATH"; then
             echo -e "$WEB_IP\t\t$WEB_HASH $WEB_HOST" >> "$TEMP_HOSTS_PATH"
+
+            # install cert files in container
+            copy_certs_to_container "$WEB_CON"
         fi
     done
 
@@ -254,6 +244,9 @@ function update_host_files() {
         # add the IP => HOST to the temporary file
         elif [[ -n "$APP_IP" && -n "$APP_HASH" ]] && ! grep "$APP_HASH" "$TEMP_HOSTS_PATH"; then
             echo -e "$APP_IP\t\t$APP_HASH" >> "$TEMP_HOSTS_PATH"
+
+            # install cert files in container
+            copy_certs_to_container "$APP_CON"
         fi
     done
 

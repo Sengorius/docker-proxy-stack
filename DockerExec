@@ -34,6 +34,7 @@ source "$PROXY_ENV_FILE"
 . "$SRC_DIR/security.sh"
 . "$SRC_DIR/generate.sh"
 . "$SRC_DIR/spawns.sh"
+. "$SRC_DIR/cert-copy.sh"
 . "$SRC_DIR/main.sh"
 
 
