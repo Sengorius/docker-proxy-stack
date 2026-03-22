@@ -218,16 +218,12 @@ function update_host_files() {
         HOST_ACTION="append"
     fi
 
-    local SHALL_BE_PUBLISHED=
+    local SHALL_BE_PUBLISHED WEB_IP WEB_HOST WEB_HASH
+
+    WEB_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "proxy-main")
 
     for WEB_CON in "${WEB_CON_NAMES[@]}"; do
-        local WEB_IP
-        WEB_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$WEB_CON")
-
-        local WEB_HOST
         WEB_HOST=$(docker inspect --format '{{ .Config.Env }}' "$WEB_CON" | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//')
-
-        local WEB_HASH
         WEB_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$WEB_CON")
 
         SHALL_BE_PUBLISHED=yes
@@ -243,11 +239,10 @@ function update_host_files() {
         fi
     done
 
-    for APP_CON in "${APP_CON_NAMES[@]}"; do
-        local APP_IP
-        APP_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$APP_CON")
+    local APP_IP APP_HASH
 
-        local APP_HASH
+    for APP_CON in "${APP_CON_NAMES[@]}"; do
+        APP_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$APP_CON")
         APP_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$APP_CON")
 
         SHALL_BE_PUBLISHED=yes
@@ -262,11 +257,10 @@ function update_host_files() {
         fi
     done
 
-    if [[ -n "$SHALL_BE_PUBLISHED" ]]; then
-        local ACF
-        ACF=$(get_container_suffixes "APP")
+    local ACF WCF
 
-        local WCF
+    if [[ -n "$SHALL_BE_PUBLISHED" ]]; then
+        ACF=$(get_container_suffixes "APP")
         WCF=$(get_container_suffixes "WEB")
 
         publish_host_files "$ACF|$WCF"
@@ -275,21 +269,18 @@ function update_host_files() {
 
 # update the hosts file with running proxy containers
 function update_host_files_with_proxy() {
-    local CON_NAMES=($(docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-'))
+    local CON_NAMES WEB_IP WEB_HOST WEB_HASH
 
-    if [[ "0" != "${#CON_NAMES[@]}" ]]; then
+    CON_NAMES=($(docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-'))
+    WEB_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "proxy-main")
+
+    if [[ "0" != "${#CON_NAMES[@]}" ]] && [[ -n "$WEB_IP" ]]; then
         for CON in "${CON_NAMES[@]}"; do
-            local WEB_IP
-            WEB_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "$CON")
-
-            local WEB_HOST
             WEB_HOST=$(docker inspect --format '{{ .Config.Env }}' "$CON" | sed 's/^\[//g' | sed 's/\]$//g' | sed 's/, /,/g' | tr " " "\n" | sed 's/,/ /g' | grep VIRTUAL_HOST= | sed -e 's/^VIRTUAL_HOST=//' | sed -e 's/[[:space:]]*$//')
-
-            local WEB_HASH
             WEB_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$CON")
 
             # add the IP => HOST to the temporary file
-            if [[ -n "$WEB_IP" ]] && ! grep "$WEB_IP" "$TEMP_HOSTS_PATH" && [[ -n "$WEB_HOST" || -n "$WEB_HASH" ]]; then
+            if ! grep "$WEB_IP" "$TEMP_HOSTS_PATH" && [[ -n "$WEB_HOST" || -n "$WEB_HASH" ]]; then
                 echo -e "$WEB_IP\t\t$WEB_HASH $WEB_HOST" >> "$TEMP_HOSTS_PATH"
             fi
         done
