@@ -17,9 +17,10 @@ function detect_distro() {
 }
 
 function copy_certs_to_container() {
-    local CONTAINER DISTRO DISTRO_FAMILY CERT_TARGET_DIR CERT_FILES filename
+    local CONTAINER CONTAINER_NAME DISTRO DISTRO_FAMILY CERT_TARGET_DIR CERT_FILES filename
 
     CONTAINER=$1
+    CONTAINER_NAME=$(docker inspect --format '{{.Name}}' "$CONTAINER" 2>/dev/null | sed 's|^/||')
 
     if ! docker inspect --format '{{.State.Running}}' "$CONTAINER" 2>/dev/null | grep -q "true"; then
         print_error "Container '$CONTAINER' is not existing or not running." 1
@@ -56,38 +57,38 @@ function copy_certs_to_container() {
     fi
 
     # create the destination certs directory and copy files into
-    docker exec "$CONTAINER" sh -c "mkdir -p '$CERT_TARGET_DIR'"
+    docker exec --user root "$CONTAINER" sh -c "mkdir -p '$CERT_TARGET_DIR'"
 
     for cert in "${CERT_FILES[@]}"; do
         filename="$(basename "${cert}")"
         docker cp "$cert" "$CONTAINER:$CERT_TARGET_DIR/$filename" > /dev/null
-        docker exec "$CONTAINER" sh -c "chmod 644 '$CERT_TARGET_DIR/$filename'"
+        docker exec --user root "$CONTAINER" sh -c "chmod 644 '$CERT_TARGET_DIR/$filename'"
     done
 
     case "$DISTRO_FAMILY" in
         debian|alpine)
             case "$DISTRO_FAMILY" in
                 debian)
-                    docker exec "$CONTAINER" sh -c "DEBIAN_FRONTEND=noninteractive apt-get update -qq && \
-                        apt-get install -y -qq ca-certificates 2>&1 > /dev/null | grep -v 'debconf'"
+                    docker exec "$CONTAINER" sh -c "DEBIAN_FRONTEND=noninteractive apt-get update -qq > /dev/null 2>&1 && \
+                        apt-get install -y -qq ca-certificates > /dev/null 2>&1"
                     ;;
                 alpine)
-                    docker exec "$CONTAINER" sh -c "apk add --no-cache ca-certificates 2>&1 > /dev/null"
+                    docker exec "$CONTAINER" sh -c "apk add --no-cache ca-certificates > /dev/null 2>&1"
                     ;;
             esac
-            docker exec "$CONTAINER" sh -c "update-ca-certificates 2>&1 > /dev/null"
+            docker exec "$CONTAINER" sh -c "update-ca-certificates > /dev/null 2>&1"
             ;;
         rhel)
             docker exec "$CONTAINER" sh -c "
                 if command -v dnf >/dev/null 2>&1; then
-                    dnf install -y -q ca-certificates 2>&1 > /dev/null
+                    dnf install -y -q ca-certificates > /dev/null 2>&1
                 else
-                    yum install -y -q ca-certificates 2>&1 > /dev/null
+                    yum install -y -q ca-certificates > /dev/null 2>&1
                 fi
             "
-            docker exec "$CONTAINER" sh -c "update-ca-trust extract 2>&1 > /dev/null"
+            docker exec "$CONTAINER" sh -c "update-ca-trust extract > /dev/null 2>&1"
             ;;
     esac
 
-    print_info "Installed certificates to container."
+    print_info "Installed certificates to container '${CONTAINER_NAME:-$CONTAINER}'."
 }
