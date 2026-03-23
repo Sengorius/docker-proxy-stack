@@ -242,7 +242,7 @@ function update_host_files() {
             sed -i "/$APP_HASH/d" "$TEMP_HOSTS_PATH"
 
         # add the IP => HOST to the temporary file
-        elif [[ -n "$APP_IP" && -n "$APP_HASH" ]] && ! grep "$APP_HASH" "$TEMP_HOSTS_PATH"; then
+        elif [[ -n "$APP_IP" && -n "$APP_HASH" ]] && ! grep -q "$APP_HASH" "$TEMP_HOSTS_PATH"; then
             echo -e "$APP_IP\t\t$APP_HASH" >> "$TEMP_HOSTS_PATH"
 
             # install cert files in container
@@ -273,7 +273,7 @@ function update_host_files_with_proxy() {
             WEB_HASH=$(docker inspect --format '{{ .Config.Hostname }}' "$CON")
 
             # add the IP => HOST to the temporary file
-            if ! grep "$WEB_IP" "$TEMP_HOSTS_PATH" && [[ -n "$WEB_HOST" || -n "$WEB_HASH" ]]; then
+            if ! grep -q "$WEB_IP" "$TEMP_HOSTS_PATH" && [[ -n "$WEB_HOST" || -n "$WEB_HASH" ]]; then
                 echo -e "$WEB_IP\t\t$WEB_HASH $WEB_HOST" >> "$TEMP_HOSTS_PATH"
             fi
         done
