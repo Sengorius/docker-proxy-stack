@@ -172,9 +172,16 @@ function start_spawn_container() {
     local SPAWN_FILE="$SPAWNS_ENABLED_PATH/$FILENAME"
     CON_NAME=$(grep "^CONTAINER_NAME=" "$SPAWN_FILE" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
 
+    [[ $(grep "VIRTUAL_HOST" "$SPAWN_FILE") =~ VIRTUAL_HOST=([^\" \\]+) ]]
+    CON_HOST=${BASH_REMATCH[1]}
+
     EXITED_CONTAINER=$(docker ps -aq -f name="$CON_NAME" -f status="exited")
     if [[ -n "$EXITED_CONTAINER" ]]; then
         docker start "$CON_NAME"
+
+        if [[ -n "$CON_HOST" ]]; then
+            copy_certs_to_container "$CON_NAME"
+        fi
     else
         RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME")
 
@@ -182,11 +189,10 @@ function start_spawn_container() {
             # shellcheck disable=SC1090
             . "$SPAWN_FILE" > /dev/null
 
-            [[ $(grep "VIRTUAL_HOST" "$SPAWN_FILE") =~ VIRTUAL_HOST=([^\" \\]+) ]]
-            CON_HOST=${BASH_REMATCH[1]}
-
             print_info "Started container $CON_NAME"
+
             if [[ -n "$CON_HOST" ]]; then
+                copy_certs_to_container "$CON_NAME"
                 publish_single_entry_hosts_file "$CON_HOST"
                 echo "  https://$CON_HOST"
             fi
