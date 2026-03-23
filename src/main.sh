@@ -122,7 +122,7 @@ function compose_run() {
     $COMPOSE_EXEC -f "$COMPOSE" --env-file "$ENV_FILE" up -d
 
     if [[ -n "$ENV_FILE" ]]; then
-        update_host_files "$ENV_FILE"
+        update_host_files "$COMPOSE" "$ENV_FILE"
 
         START_CONTAINER=$(grep "^START_CONTAINER=" "$ENV_FILE" | sed -e 's/^START_CONTAINER=//' | sed -e 's/[[:space:]]*$//')
 
@@ -202,10 +202,26 @@ function start_spawn_container() {
 
 # update any running -web and -app containers /etc/hosts file with the new started IP of the current -web container
 function update_host_files() {
-    local ENV_FILE=$1
-    local HOST_ACTION=$2
-    local WEB_CON_NAMES=($(get_nginx_names "$ENV_FILE"))
-    local APP_CON_NAMES=($(get_container_names "$ENV_FILE"))
+    local COMPOSE=$1
+    local ENV_FILE=$2
+    local HOST_ACTION=$3
+    local COMPOSE_EXEC WCF ACF CON_ID CON_NAME
+    local WEB_CON_NAMES=() APP_CON_NAMES=()
+
+    COMPOSE_EXEC=$(get_compose_executable)
+    WCF=$(get_container_suffixes "WEB")
+    ACF=$(get_container_suffixes "APP")
+
+    # enumerate only containers belonging to this specific compose project
+    while IFS= read -r CON_ID; do
+        [[ -z "$CON_ID" ]] && continue
+        CON_NAME=$(docker inspect --format '{{.Name}}' "$CON_ID" 2>/dev/null | sed 's|^/||')
+        if [[ "$CON_NAME" =~ [_-](${WCF})$ ]]; then
+            WEB_CON_NAMES+=("$CON_ID")
+        elif [[ "$CON_NAME" =~ [_-](${ACF})$ ]]; then
+            APP_CON_NAMES+=("$CON_ID")
+        fi
+    done < <($COMPOSE_EXEC -f "$COMPOSE" ps -q 2>/dev/null)
 
     if [[ -z "$HOST_ACTION" ]]; then
         HOST_ACTION="append"
@@ -256,12 +272,7 @@ function update_host_files() {
         fi
     done
 
-    local ACF WCF
-
     if [[ -n "$SHALL_BE_PUBLISHED" ]]; then
-        ACF=$(get_container_suffixes "APP")
-        WCF=$(get_container_suffixes "WEB")
-
         publish_host_files "$ACF|$WCF"
     fi
 }

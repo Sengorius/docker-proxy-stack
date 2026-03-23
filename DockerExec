@@ -207,7 +207,7 @@ elif [[ "prod" == "$ENVIRONMENT" ]]; then
 
     # stop and remove the containers
     elif [[ "stop" == "$ACTION" ]]; then
-        update_host_files "$ENV_FILE" "remove"
+        update_host_files "$COMPOSE" "$ENV_FILE" "remove"
         compose_halt "$COMPOSE" "$ENV_FILE"
 
     else
@@ -322,7 +322,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             exit 1
         fi
 
-        update_host_files "$ENV_FILE" "remove"
+        update_host_files "$COMPOSE" "$ENV_FILE" "remove"
         compose_halt "$COMPOSE" "$ENV_FILE"
 
     # do a dump import for a database container
