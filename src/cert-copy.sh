@@ -48,11 +48,11 @@ function copy_certs_to_container() {
             ;;
     esac
 
-    # collect .crt files from directory
-    mapfile -t CERT_FILES < <(find "$CERTS_PATH" -maxdepth 1 -type f -name "*.crt")
+    # collect .crt files from directory (including symlinks pointing to valid files, e.g. from Let's Encrypt companion)
+    mapfile -t CERT_FILES < <(find -L "$CERTS_PATH" -maxdepth 1 -type f -name "*.crt")
 
     if [[ ${#CERT_FILES[@]} -eq 0 ]]; then
-        print_error "Keine .crt-Dateien gefunden in: ${CERT_SOURCE_DIR}" 1
+        print_error "No .crt files located in: ${CERT_SOURCE_DIR}" 1
         return
     fi
 
@@ -61,7 +61,8 @@ function copy_certs_to_container() {
 
     for cert in "${CERT_FILES[@]}"; do
         filename="$(basename "${cert}")"
-        docker cp "$cert" "$CONTAINER:$CERT_TARGET_DIR/$filename" > /dev/null
+        real_cert="$(readlink -f "${cert}")"
+        docker cp "$real_cert" "$CONTAINER:$CERT_TARGET_DIR/$filename" > /dev/null
         docker exec --user root "$CONTAINER" sh -c "chmod 644 '$CERT_TARGET_DIR/$filename'"
     done
 
