@@ -318,7 +318,8 @@ function publish_host_files() {
             CURRENT_CONTENT=$(docker exec -u root "$CURRENT" /bin/sh -c "cat /etc/hosts")
             CURRENT_CONTENT=$(echo "$CURRENT_CONTENT" | sed '/^### DockerExec hosts file update ###/,$d')
             UPDATED_HOSTS="${CURRENT_CONTENT}"$'\n### DockerExec hosts file update ###\n'"$(cat "$TEMP_HOSTS_PATH")"
-            printf '%s' "$UPDATED_HOSTS" | docker exec -i -u root "$CURRENT" /bin/sh -c "cat > /etc/hosts"
+            # the trailing newline is mandatory, as musl (Alpine) ignores a last line without it
+            printf '%s\n' "$UPDATED_HOSTS" | docker exec -i -u root "$CURRENT" /bin/sh -c "cat > /etc/hosts"
             COUNTER=$((COUNTER+1))
         fi
     done <<< "$(printf "%s\n%s" "$TARGET_CONTAINERS" "$PROXY_CONTAINERS")"
