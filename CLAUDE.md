@@ -33,6 +33,7 @@ certificates, and spawn containers.
 # Certificates
 ./DockerExec do init-certs                  # Generate root CA + wildcard cert for docker.test
 ./DockerExec do add-cert                    # Add multilevel wildcard cert (e.g., *.sub.docker.test)
+./DockerExec do renew-cert [subdomain]      # Re-issue a host cert under the existing rootCA (rootCA untouched)
 
 # Utilities
 ./DockerExec do ps                          # Docker ps with configured columns
@@ -70,9 +71,14 @@ entries are bracketed by `### DockerExec hosts file update ###` markers.
 
 ### Certificate Flow
 1. Root CA + domain certs live in `certs/`
-2. On project start, `copy_certs_to_container()` in `cert-copy.sh` detects the container OS and installs certs into 
-   the appropriate system trust store
+2. On project start, `copy_certs_to_container()` in `cert-copy.sh` detects the container OS and installs the rootCAs
+   into the appropriate system trust store; host certificates are filtered out, as they are verified through their
+   issuer (`filter_root_certificates()` drops duplicates and every certificate another one of the collection signed)
 3. Users register `rootCA.crt` in their browser once; all `*.docker.test` subdomains then work with HTTPS
+4. A rootCA and its host certificate must never share their subject DN, and a host certificate needs an
+   authorityKeyIdentifier — otherwise OpenSSL 3.1+ treats the host certificate as self-signed and refuses the chain.
+   `do renew-cert` re-issues a host certificate under the unchanged rootCA to repair such a pair, so the rootCA stays
+   registered in the browser
 
 ### Configuration (`.env`)
 Key variables that control behavior:

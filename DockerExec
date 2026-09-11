@@ -132,6 +132,7 @@ if [[ "help" == "$ACTION" || "--help" == "$ACTION" || "-h" == "$ACTION" ]]; then
     echo -e "    ${COLOR_BLUE}status ${COLOR_RED}[\$fn]${COLOR_WHITE}       - creates a text file [\$fn] in current location that contains a list of images and runninge containers on this machine"
     echo -e "    ${COLOR_BLUE}init-certs${COLOR_WHITE}         - create openssl certificates to be registered in your browsers"
     echo -e "    ${COLOR_BLUE}add-cert${COLOR_WHITE}           - create addition openssl certificates for multilevel wildcards"
+    echo -e "    ${COLOR_BLUE}renew-cert ${COLOR_RED}[\$sd]${COLOR_WHITE}   - re-issues the host certificate for [\$sd].docker.test with the existing rootCA"
     echo -e "    ${COLOR_BLUE}self-update${COLOR_WHITE}        - update the Docker Proxy Stack with the latest tag"
     echo
 
@@ -547,6 +548,38 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
         print_info "Done creating rootCA and certificates in $CERTS_PATH."
         print_info "Now register the rootCA.crt in your browser." 1
+
+    # re-issue a host certificate under an existing rootCA, e.g. to repair a certificate that shares
+    # its subject with its rootCA and cannot be verified by OpenSSL 3.1+
+    elif [[ "renew-cert" == "$ACTION" || "renewcert" == "$ACTION" ]]; then
+        command -v openssl > /dev/null 2>&1 || {
+            print_error "Openssl seems not to be installed on this machine. But it is necessary to generate keys..." 1
+            exit 1
+        }
+
+        if [[ ! -d "$CERTS_PATH" ]]; then
+            print_error "There is no certificates directory $CERTS_PATH, yet. Try 'DockerExec init-certs' first." 1
+            exit 1
+        fi
+
+        print_info "This re-issues a host certificate with the existing rootCA. The rootCA itself stays untouched, so it does not have to be registered in your browser again."
+
+        # the subdomain may be given as a parameter, otherwise it is asked for
+        if [[ 0 != "${#PARAMETERS[@]}" && -n "${PARAMETERS[0]}" ]]; then
+            RSA_SUBDOMAIN="${PARAMETERS[0]}"
+        else
+            RSA_SUBDOMAIN=$(match_answer_or_default "Which subdomain should be renewed, e.g. 'example' for '*.example.docker.test' (empty for docker.test) []: " "")
+        fi
+
+        RSA_KEY_LENGTH=$(match_answer_or_default "Define a key size [4096]: " 4096)
+        RSA_VALID_DAYS=$(match_answer_or_default "How long shall this certificate be valid (in days) [3650]: " 3650)
+
+        if ! renew_openssl_host_cert "$RSA_KEY_LENGTH" "$RSA_VALID_DAYS" "$RSA_SUBDOMAIN"; then
+            exit 1
+        fi
+
+        print_info "Done renewing the host certificate in $CERTS_PATH."
+        print_info "Restart the proxy ('DockerExec proxy init') and your projects, to distribute the new certificate." 1
 
     # shortcut to list all docker containers
     elif [[ "self-update" == "$ACTION" || "selfupdate" == "$ACTION" ]]; then
