@@ -547,7 +547,7 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
                                "$RSA_SUBDOMAIN"
 
         print_info "Done creating rootCA and certificates in $CERTS_PATH."
-        print_info "Now register the rootCA.crt in your browser." 1
+        print_info "Now register the $RSA_SUBDOMAIN.rootCA.crt in your browser." 1
 
     # re-issue a host certificate under an existing rootCA, e.g. to repair a certificate that shares
     # its subject with its rootCA and cannot be verified by OpenSSL 3.1+
