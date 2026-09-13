@@ -510,7 +510,10 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
         generate_openssl_certs "$RSA_KEY_LENGTH" "$RSA_VALID_DAYS" "$RSA_COUNTRY_NAME" "$RSA_STATE_NAME" \
                                "$RSA_LOCALITY_NAME" "$RSA_ORG_NAME" "$RSA_ORGUNIT_NAME" "$RSA_EMAIL" ""
 
-        print_info "Done creating rootCA and certificates in $CERTS_PATH."
+        print_info "Done creating rootCA and certificates in $CERTS_PATH." 1
+
+        offer_rootca_installation "$CERTS_PATH/rootCA.crt"
+
         print_info "Now register the rootCA.crt in your browser." 1
 
     elif [[ "add-cert" == "$ACTION" || "addcert" == "$ACTION" ]]; then
@@ -546,7 +549,10 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
                                "$RSA_LOCALITY_NAME" "$RSA_ORG_NAME" "$RSA_ORGUNIT_NAME" "$RSA_EMAIL" \
                                "$RSA_SUBDOMAIN"
 
-        print_info "Done creating rootCA and certificates in $CERTS_PATH."
+        print_info "Done creating rootCA and certificates in $CERTS_PATH." 1
+
+        offer_rootca_installation "$CERTS_PATH/$RSA_SUBDOMAIN.rootCA.crt"
+
         print_info "Now register the $RSA_SUBDOMAIN.rootCA.crt in your browser." 1
 
     # re-issue a host certificate under an existing rootCA, e.g. to repair a certificate that shares
@@ -578,7 +584,15 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
             exit 1
         fi
 
-        print_info "Done renewing the host certificate in $CERTS_PATH."
+        print_info "Done renewing the host certificate in $CERTS_PATH." 1
+
+        # the rootCA itself did not change, but it may still be missing in the trust store of this machine
+        if [[ -n "$RSA_SUBDOMAIN" ]]; then
+            offer_rootca_installation "$CERTS_PATH/$RSA_SUBDOMAIN.rootCA.crt"
+        else
+            offer_rootca_installation "$CERTS_PATH/rootCA.crt"
+        fi
+
         print_info "Restart the proxy ('DockerExec proxy init') and your projects, to distribute the new certificate." 1
 
     # shortcut to list all docker containers

@@ -12,6 +12,24 @@ function match_answer_or_default() {
     fi
 }
 
+# asks a yes/no question; the second parameter is the answer taken for an empty input
+function match_confirmation_or_default() {
+    local QUESTION=$1
+    local DEFAULT=$2
+    local ANSWER
+
+    ANSWER=$(match_answer_or_default "$QUESTION" "$DEFAULT")
+
+    case "$ANSWER" in
+        y|Y|yes|Yes|YES|j|J|ja|Ja|JA)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # fetches the lastest tag version from remote repository, if project was cloned from git
 function get_latest_git_tag() {
     local EXIT_ON_FAILURE=$1

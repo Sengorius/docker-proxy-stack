@@ -75,6 +75,10 @@ entries are bracketed by `### DockerExec hosts file update ###` markers.
    into the appropriate system trust store; host certificates are filtered out, as they are verified through their
    issuer (`filter_root_certificates()` drops duplicates and every certificate another one of the collection signed)
 3. Users register `rootCA.crt` in their browser once; all `*.docker.test` subdomains then work with HTTPS
+   After `init-certs`, `add-cert` and `renew-cert`, `offer_rootca_installation()` in `cert-copy.sh` asks whether the
+   rootCA shall also go into the trust store of the host machine (`/usr/local/share/ca-certificates` +
+   `update-ca-certificates` on Debian-like systems), so curl, git and composer on the host accept the certificates.
+   An unchanged rootCA that is already installed is detected by its fingerprint and never asked for again
 4. A rootCA and its host certificate must never share their subject DN, and a host certificate needs an
    authorityKeyIdentifier — otherwise OpenSSL 3.1+ treats the host certificate as self-signed and refuses the chain.
    `do renew-cert` re-issues a host certificate under the unchanged rootCA to repair such a pair, so the rootCA stays
