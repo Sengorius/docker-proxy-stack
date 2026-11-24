@@ -57,6 +57,9 @@ function get_next_priority() {
     fi
 }
 
+# the image used for the proxy main container
+PROXY_MAIN_IMAGE='nginxproxy/nginx-proxy:alpine'
+
 # make sure to have the proxy container within the spawns-enabled
 function ensure_proxy_main() {
     ensure_spawns_paths
@@ -65,7 +68,11 @@ function ensure_proxy_main() {
     # shellcheck disable=SC2010
     MAIN_FILE=$(ls "$SPAWNS_ENABLED_PATH" | grep "main")
 
-    if [[ -z "$MAIN_FILE" ]]; then
+    if [[ -n "$MAIN_FILE" ]]; then
+        echo "$MAIN_FILE" | while read -r file; do
+            migrate_proxy_main_image "$SPAWNS_ENABLED_PATH/$file"
+        done
+    else
         {
             echo "#!/usr/bin/env bash"
             echo
@@ -84,8 +91,32 @@ function ensure_proxy_main() {
             echo "    --network \"\${NETWORK_NAME}\" \\"
             echo "    --restart unless-stopped \\"
             echo "    --env \"TRUST_DOWNSTREAM_PROXY=false\" \\"
-            echo "    jwilder/nginx-proxy:alpine"
+            echo "    $PROXY_MAIN_IMAGE"
         } > "$SPAWNS_ENABLED_PATH/000-main"
+    fi
+}
+
+# replace the deprecated jwilder/nginx-proxy image within an existing proxy main spawn file;
+# only the image name is exchanged, any tag and all other lines of the file stay untouched
+function migrate_proxy_main_image() {
+    local MAIN_FILE=$1
+    local OLD_IMAGE_PATTERN='^([[:space:]]*)jwilder/nginx-proxy([:[:space:]]|$)'
+
+    if [[ ! -f "$MAIN_FILE" ]] || ! grep -Eq "$OLD_IMAGE_PATTERN" "$MAIN_FILE"; then
+        return 0
+    fi
+
+    # --follow-symlinks keeps a linked spawn file a link, instead of replacing it with a copy
+    sed -E -i --follow-symlinks "s#${OLD_IMAGE_PATTERN}#\\1nginxproxy/nginx-proxy\\2#" "$MAIN_FILE"
+    print_info "Replaced the deprecated image jwilder/nginx-proxy by nginxproxy/nginx-proxy in $MAIN_FILE"
+
+    # an already existing container keeps its old image until it was removed
+    local CON_NAME
+    CON_NAME=$(grep "^CONTAINER_NAME=" "$MAIN_FILE" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
+
+    if [[ -n "$CON_NAME" && "$(docker inspect -f '{{.Config.Image}}' "$CON_NAME" 2>/dev/null)" == jwilder/* ]]; then
+        print_warning "The container $CON_NAME still runs the old image. Use 'DockerExec proxy finish' and"
+        print_warning "'DockerExec proxy init' to recreate it with nginxproxy/nginx-proxy." 1
     fi
 }
 

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 **Docker-Proxy-Stack** is a local web development toolkit built on 
-[jwilder/nginx-proxy](https://github.com/nginx-proxy/nginx-proxy). It provides HTTPS termination, domain routing 
+[nginxproxy/nginx-proxy](https://github.com/nginx-proxy/nginx-proxy). It provides HTTPS termination, domain routing
 (e.g., `https://project.docker.test`), certificate distribution, and shared infrastructure (databases, mail, etc.) 
 across all local projects via a single Docker network (`proxy-network`).
 
