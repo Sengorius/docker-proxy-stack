@@ -162,14 +162,14 @@ function import_to_database_container() {
         exit 1
     fi
 
-    DB_ARCH=$(match_answer_or_default "Which database architecture is on that container? [MYSQL/pgsql] " "mysql")
+    DB_ARCH=$(match_answer_or_default "Which database architecture is on that container? [MYSQL/mariadb/pgsql] " "mysql")
     if [[ -z "$DB_ARCH" ]]; then
         print_error "The database architecture is a mandatory parameter!" 1
         exit 1
     fi
 
     case "$DB_ARCH" in
-        mysql|MYSQL|pgsql|PGSQL)
+        mysql|MYSQL|mariadb|MARIADB|pgsql|PGSQL)
             # anything is fine
             ;;
         *)
@@ -191,8 +191,12 @@ function import_to_database_container() {
     fi
 
     case "$DB_ARCH" in
-        MYSQL|mysql)
-            COMMAND="mysql -proot -e 'CREATE DATABASE IF NOT EXISTS $DB_NAME' && mysql -proot '$DB_NAME' < '/var/data/$FILE_NAME'"
+        MYSQL|mysql|MARIADB|mariadb)
+            # MariaDB >= 11 ships the "mariadb" client only, MySQL ships the "mysql" client only,
+            # so the available client is detected inside the container
+            COMMAND="DB_CLIENT=\$(command -v mariadb || command -v mysql) || { echo 'Neither a mariadb nor a mysql client was found in the container!' >&2; exit 1; }"
+            COMMAND+=" && \"\$DB_CLIENT\" -proot -e 'CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`'"
+            COMMAND+=" && \"\$DB_CLIENT\" -proot '$DB_NAME' < '/var/data/$FILE_NAME'"
             ;;
         PGSQL|pgsql)
             COMMAND="echo \"SELECT 'CREATE DATABASE $DB_NAME' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec\" | psql && psql -d '$DB_NAME' < '/var/data/$FILE_NAME'"
