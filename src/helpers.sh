@@ -145,6 +145,11 @@ function check_for_updates() {
 
 # asking question to import a .sql file dump into a database container
 function import_to_database_container() {
+    # all answers end up in a shell command and in SQL statements, so they are restricted to safe characters
+    local CONTAINER_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9_.-]*$'
+    local DB_NAME_PATTERN='^[a-zA-Z0-9_-]{1,63}$'
+    local FILE_NAME_PATTERN='^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$'
+
     print_info "Starting the import for a database dump. Please position the .sql file within the data"
     print_info "directory in proxy-stack and map the volume in your database containers with"
     print_info "\`--volume \"\${DATA_PATH}:/var/data\"\` to make this work." 1
@@ -156,20 +161,22 @@ function import_to_database_container() {
         exit 1
     fi
 
-    RUNNING_APP=$(docker ps -aq -f name="$CONTAINER_NAME" -f status="running")
-    if [[ -z "$RUNNING_APP" ]]; then
+    if [[ ! "$CONTAINER_NAME" =~ $CONTAINER_PATTERN ]]; then
+        print_error "The container name '$CONTAINER_NAME' contains invalid characters!" 1
+        exit 1
+    fi
+
+    # inspect matches the exact container name, while "docker ps -f name=" would match any substring
+    if [[ "true" != "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null)" ]]; then
         print_error "The container $CONTAINER_NAME is not up and running!" 1
         exit 1
     fi
 
     DB_ARCH=$(match_answer_or_default "Which database architecture is on that container? [MYSQL/mariadb/pgsql] " "mysql")
-    if [[ -z "$DB_ARCH" ]]; then
-        print_error "The database architecture is a mandatory parameter!" 1
-        exit 1
-    fi
+    DB_ARCH="${DB_ARCH,,}"
 
     case "$DB_ARCH" in
-        mysql|MYSQL|mariadb|MARIADB|pgsql|PGSQL)
+        mysql|mariadb|pgsql)
             # anything is fine
             ;;
         *)
@@ -184,22 +191,40 @@ function import_to_database_container() {
         exit 1
     fi
 
+    if [[ ! "$DB_NAME" =~ $DB_NAME_PATTERN ]]; then
+        print_error "The database name '$DB_NAME' is invalid! Allowed are up to 63 of the characters a-z, A-Z, 0-9, _ and -." 1
+        exit 1
+    fi
+
     FILE_NAME=$(match_answer_or_default "Which file shall be imported? " "")
     if [[ -z "$FILE_NAME" ]]; then
         print_error "Please specify the dump .sql file to import!" 1
         exit 1
     fi
 
+    # the file has to stay within /var/data, so any ".." path segment is refused
+    if [[ ! "$FILE_NAME" =~ $FILE_NAME_PATTERN || "/$FILE_NAME/" == *"/../"* ]]; then
+        print_error "The file name '$FILE_NAME' is invalid! Use a path relative to the data directory without '..'." 1
+        exit 1
+    fi
+
+    if ! docker exec "$CONTAINER_NAME" test -f "/var/data/$FILE_NAME"; then
+        print_error "The file '/var/data/$FILE_NAME' does not exist in container $CONTAINER_NAME!" 1
+        exit 1
+    fi
+
     case "$DB_ARCH" in
-        MYSQL|mysql|MARIADB|mariadb)
+        mysql|mariadb)
             # MariaDB >= 11 ships the "mariadb" client only, MySQL ships the "mysql" client only,
             # so the available client is detected inside the container
             COMMAND="DB_CLIENT=\$(command -v mariadb || command -v mysql) || { echo 'Neither a mariadb nor a mysql client was found in the container!' >&2; exit 1; }"
             COMMAND+=" && \"\$DB_CLIENT\" -proot -e 'CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`'"
             COMMAND+=" && \"\$DB_CLIENT\" -proot '$DB_NAME' < '/var/data/$FILE_NAME'"
             ;;
-        PGSQL|pgsql)
-            COMMAND="echo \"SELECT 'CREATE DATABASE $DB_NAME' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec\" | psql && psql -d '$DB_NAME' < '/var/data/$FILE_NAME'"
+        pgsql)
+            # the database name is double quoted, so names containing a "-" are created as well
+            COMMAND="echo \"SELECT 'CREATE DATABASE \\\"$DB_NAME\\\"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec\" | psql"
+            COMMAND+=" && psql -d '$DB_NAME' < '/var/data/$FILE_NAME'"
             ;;
     esac
 
