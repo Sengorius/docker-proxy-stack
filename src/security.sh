@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # offer a function to test a directory on having valid .env and (.yml or .yaml)
 function test_files() {
     local ENV_FILE=$1

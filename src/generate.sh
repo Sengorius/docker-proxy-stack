@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # reads a certificate subject as an openssl '-subj' compatible string; pass 1 as second argument to
 # drop the common name from the result
 function read_cert_subject() {
@@ -139,7 +141,7 @@ function generate_openssl_certs() {
         -key "$KEYFILE.key" \
         -subj "$HOST_SUBJECT" \
         -reqexts SAN \
-        -config <(cat /etc/ssl/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=$DOMAIN_ALT_NAMES")) \
+        -config <(cat /etc/ssl/openssl.cnf <(printf '\n[SAN]\nsubjectAltName=%s' "$DOMAIN_ALT_NAMES")) \
         -out "$KEYFILE.csr"
 
     # last step: sign the domain certificate with the rootCA
@@ -225,7 +227,7 @@ function renew_openssl_host_cert() {
         -key "$KEY_FILE" \
         -subj "$HOST_SUBJECT" \
         -reqexts SAN \
-        -config <(cat /etc/ssl/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=$DOMAIN_ALT_NAMES")) \
+        -config <(cat /etc/ssl/openssl.cnf <(printf '\n[SAN]\nsubjectAltName=%s' "$DOMAIN_ALT_NAMES")) \
         -out "$CSR_FILE"
 
     # sign it with the existing rootCA

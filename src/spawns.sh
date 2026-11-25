@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # simply add leading zeros until at least 3 digits in total
 function prepend_zero() {
     local NUMBER=$1
@@ -30,7 +32,7 @@ function get_next_priority() {
         EXPANDED_MANUAL_PRIO=$(prepend_zero "$MANUAL_PRIO")
 
         local MANUAL_FILE_EXISTS
-        MANUAL_FILE_EXISTS=$(ls "$SPAWNS_ENABLED_PATH" | grep "$EXPANDED_MANUAL_PRIO")
+        MANUAL_FILE_EXISTS=$(find "$SPAWNS_ENABLED_PATH" -mindepth 1 -maxdepth 1 -name "${EXPANDED_MANUAL_PRIO}-*" -printf '%f\n')
 
         if [[ -z "$MANUAL_FILE_EXISTS" ]]; then
             echo "$EXPANDED_MANUAL_PRIO"
@@ -42,10 +44,10 @@ function get_next_priority() {
     # otherwise calculate the next prio
     else
         local LATEST_PRIO_STRING
-        LATEST_PRIO_STRING=$(ls "$SPAWNS_ENABLED_PATH" | sort -r | head -1 | awk -F'-' '{print $1}')
+        LATEST_PRIO_STRING=$(find "$SPAWNS_ENABLED_PATH" -mindepth 1 -maxdepth 1 -name '[0-9]*' -printf '%f\n' | sort -r | head -1 | awk -F'-' '{print $1}')
 
         local LATEST_PRIO_INT
-        LATEST_PRIO_INT=$((10#"$LATEST_PRIO_STRING"))
+        LATEST_PRIO_INT=$((10#${LATEST_PRIO_STRING:-0}))
 
         local LATEST_REST_INT
         LATEST_REST_INT=$((LATEST_PRIO_INT % 10))
@@ -65,8 +67,7 @@ function ensure_proxy_main() {
     ensure_spawns_paths
 
     local MAIN_FILE
-    # shellcheck disable=SC2010
-    MAIN_FILE=$(ls "$SPAWNS_ENABLED_PATH" | grep "main")
+    MAIN_FILE=$(find "$SPAWNS_ENABLED_PATH" -mindepth 1 -maxdepth 1 -name '*main*' -printf '%f\n' | sort)
 
     if [[ -n "$MAIN_FILE" ]]; then
         echo "$MAIN_FILE" | while read -r file; do

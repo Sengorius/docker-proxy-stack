@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # offer a function to print found hosts as a list
 # and also include into the hosts file, if not done yet
 function print_hosts() {
@@ -21,8 +23,12 @@ function print_hosts() {
 
             publish_single_entry_hosts_file "${BASH_REMATCH[1]}"
 
-            for addr in $(echo "${BASH_REMATCH[1]}" | tr -d '[:space:]' | tr "," "\n"); do
-                echo "  https://$addr"
+            local HOST_LIST HOST_ADDRESSES addr
+            HOST_LIST="${BASH_REMATCH[1]//[[:space:]]/}"
+            IFS=',' read -ra HOST_ADDRESSES <<< "$HOST_LIST"
+
+            for addr in "${HOST_ADDRESSES[@]}"; do
+                [[ -n "$addr" ]] && echo "  https://$addr"
             done
         done
     fi
@@ -139,7 +145,7 @@ function compose_run() {
                 fi
             fi
         else
-            CON_NAMES=($(get_container_names "$ENV_FILE"))
+            mapfile -t CON_NAMES < <(get_container_names "$ENV_FILE" | sed '/^[[:space:]]*$/d')
 
             if [[ "0" != "${#CON_NAMES[@]}" ]]; then
                 # retry sh, if bash is not found
@@ -186,7 +192,8 @@ function start_spawn_container() {
         RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME")
 
         if [[ -z "$RUNNING_CONTAINER" ]]; then
-            # shellcheck disable=SC1090
+            # spawn files are generated per installation, so there is nothing to follow
+            # shellcheck source=/dev/null
             . "$SPAWN_FILE" > /dev/null
 
             print_info "Started container $CON_NAME"
@@ -281,7 +288,7 @@ function update_host_files() {
 function update_host_files_with_proxy() {
     local CON_NAMES WEB_IP WEB_HOST WEB_HASH
 
-    CON_NAMES=($(docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-'))
+    mapfile -t CON_NAMES < <(docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-')
     WEB_IP=$(docker inspect --format '{{ range .NetworkSettings.Networks }}{{ .IPAddress }}{{ end }}' "proxy-main")
 
     if [[ "0" != "${#CON_NAMES[@]}" ]] && [[ -n "$WEB_IP" ]]; then
@@ -299,22 +306,25 @@ function update_host_files_with_proxy() {
 
 # update the /etc/hosts file in any proxy related container with data from .current-hosts file
 function publish_host_files() {
-    local HOST_CONTAINER_SUFFIXES=($(echo "$1" | tr "|" "\n"))
-    local IGNORED_CONTAINERS=($(echo "$IGNORED_HOSTS_CONTAINERS" | tr "|" "\n"))
-    local FORMATTED_CONTAINERS=
+    local -a HOST_CONTAINER_SUFFIXES IGNORED_CONTAINERS NAME_FILTERS=()
+    local NEXT_SUFFIX
+
+    IFS='|' read -ra HOST_CONTAINER_SUFFIXES <<< "$1"
+    IFS='|' read -ra IGNORED_CONTAINERS <<< "$IGNORED_HOSTS_CONTAINERS"
 
     for NEXT_SUFFIX in "${HOST_CONTAINER_SUFFIXES[@]}"; do
-        FORMATTED_CONTAINERS=${FORMATTED_CONTAINERS}\ -f\ name="-${NEXT_SUFFIX}"\ -f\ name="_${NEXT_SUFFIX}"
+        [[ -n "$NEXT_SUFFIX" ]] || continue
+        NAME_FILTERS+=(-f "name=-${NEXT_SUFFIX}" -f "name=_${NEXT_SUFFIX}")
     done
 
     local COUNTER=0
     local TARGET_CONTAINERS
     local PROXY_CONTAINERS
-    TARGET_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f status="running"${FORMATTED_CONTAINERS})
+    TARGET_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f status="running" "${NAME_FILTERS[@]}")
     PROXY_CONTAINERS=$(docker ps -a --format '{{ .Names }}' -f status='running' -f name='proxy-')
 
     while read -r CURRENT; do
-        if [[ -n "$CURRENT" && ! "${IGNORED_CONTAINERS[*]}" =~ "$CURRENT" ]]; then
+        if [[ -n "$CURRENT" ]] && ! is_in_list "$CURRENT" "${IGNORED_CONTAINERS[@]}"; then
             CURRENT_CONTENT=$(docker exec -u root "$CURRENT" /bin/sh -c "cat /etc/hosts")
             CURRENT_CONTENT=$(echo "$CURRENT_CONTENT" | sed '/^### DockerExec hosts file update ###/,$d')
             UPDATED_HOSTS="${CURRENT_CONTENT}"$'\n### DockerExec hosts file update ###\n'"$(cat "$TEMP_HOSTS_PATH")"
@@ -332,14 +342,13 @@ function attach_to_logs() {
     DOCKER_LOGS=
 
     if [[ -z "$ATTACH_TO_COMPOSE_LOGS" || "1" == "$ATTACH_TO_COMPOSE_LOGS" ]]; then
-        # shellcheck disable=SC2045
-        for file in $(ls "$SPAWNS_ENABLED_PATH"); do
-            SPAWN_FILE="$SPAWNS_ENABLED_PATH/$file"
+        for SPAWN_FILE in "$SPAWNS_ENABLED_PATH"/*; do
+            [[ -f "$SPAWN_FILE" ]] || continue
             CON_NAME=$(grep "^CONTAINER_NAME=" "$SPAWN_FILE" | sed -e 's/^CONTAINER_NAME=//' | tr -d '"' | sed -e 's/[[:space:]]*$//')
             RUNNING_CONTAINER=$(docker ps -aq -f name="$CON_NAME" -f status="running")
 
             if [[ -n "$RUNNING_CONTAINER" ]]; then
-                DOCKER_LOGS="docker logs --details -f $CON_NAME & $DOCKER_LOGS"
+                DOCKER_LOGS="docker logs --details -f $(printf '%q' "$CON_NAME") & $DOCKER_LOGS"
             fi
         done
 

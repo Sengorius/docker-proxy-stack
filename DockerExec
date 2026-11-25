@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
 
 SCRIPT_PATH=$(realpath "$0")
 export SCRIPT_PATH
@@ -24,19 +25,26 @@ export SPAWNS_AVAIL_PATH="$BASE_DIR/spawns-available"
 export SPAWNS_ENABLED_PATH="$BASE_DIR/spawns-enabled"
 
 # include variables from .env file in source directory
-# shellcheck disable=SC1090
+# shellcheck source=.env.template
 source "$PROXY_ENV_FILE"
 
 # remap certain adjustable paths
 export CERTS_PATH="${CUSTOM_CERTS_PATH:-$BASE_DIR/certs}"
 
 # include scripts
+# shellcheck source=src/warnings.sh
 . "$SRC_DIR/warnings.sh"
+# shellcheck source=src/helpers.sh
 . "$SRC_DIR/helpers.sh"
+# shellcheck source=src/security.sh
 . "$SRC_DIR/security.sh"
+# shellcheck source=src/generate.sh
 . "$SRC_DIR/generate.sh"
+# shellcheck source=src/spawns.sh
 . "$SRC_DIR/spawns.sh"
+# shellcheck source=src/cert-copy.sh
 . "$SRC_DIR/cert-copy.sh"
+# shellcheck source=src/main.sh
 . "$SRC_DIR/main.sh"
 
 
@@ -223,7 +231,7 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # start docker-proxy in proxy path
     if [[ "init" == "$ACTION" ]]; then
-        cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
+        cd "$BASE_DIR" || { print_error "Could not change directory to $BASE_DIR"; exit 1; }
 
         # check the /certs directory
         if [[ ! -d "$CERTS_PATH" || ! -f "$CERTS_PATH/docker.test.key" ]]; then
@@ -248,9 +256,10 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
         fi
         touch "$TEMP_HOSTS_PATH"
 
-        # shellcheck disable=SC2045
-        for file in $(ls "$SPAWNS_ENABLED_PATH"); do
-            start_spawn_container "$file"
+        # the glob is sorted, so the spawns start in the order of their priority prefix
+        for SPAWN_FILE in "$SPAWNS_ENABLED_PATH"/*; do
+            [[ -f "$SPAWN_FILE" ]] || continue
+            start_spawn_container "${SPAWN_FILE##*/}"
         done
 
         # add all proxy containers (with their IP and hostname) to current hosts file
@@ -262,11 +271,11 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
 
     # stop and remove the proxy
     elif [[ "finish" == "$ACTION" ]]; then
-        PROXY_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f name="proxy-" -f status="running")
-        if [[ -n "$PROXY_CONTAINERS" ]]; then
+        mapfile -t PROXY_CONTAINERS < <(docker ps -a --format "{{ .Names }}" -f name="proxy-" -f status="running")
+        if [[ ${#PROXY_CONTAINERS[@]} -gt 0 ]]; then
             print_info "Shutting down proxy..."
 
-            for container in $PROXY_CONTAINERS; do
+            for container in "${PROXY_CONTAINERS[@]}"; do
                 docker stop "$container" > /dev/null
                 echo "  - stopped $container"
             done
@@ -274,11 +283,11 @@ elif [[ "proxy" == "$ENVIRONMENT" ]]; then
             print_info "The Proxy is not started. No containers to stop."
         fi
 
-        STOPPED_PROXY_CONTAINERS=$(docker ps -a --format "{{ .Names }}" -f name="proxy-" -f status="exited")
-        if [[ -n "$STOPPED_PROXY_CONTAINERS" ]]; then
+        mapfile -t STOPPED_PROXY_CONTAINERS < <(docker ps -a --format "{{ .Names }}" -f name="proxy-" -f status="exited")
+        if [[ ${#STOPPED_PROXY_CONTAINERS[@]} -gt 0 ]]; then
             print_info "Removing proxy containers..."
 
-            for container in $STOPPED_PROXY_CONTAINERS; do
+            for container in "${STOPPED_PROXY_CONTAINERS[@]}"; do
                 docker rm -f "$container" > /dev/null
                 echo "  - removed $container"
             done
@@ -390,13 +399,11 @@ elif [[ "spawn" == "$ENVIRONMENT" ]]; then
 elif [[ "do" == "$ENVIRONMENT" ]]; then
     # stop, then remove all containers
     if [[ "finish" == "$ACTION" ]]; then
-        REMOVABLE_CONTAINERS=$(docker ps -aq)
-        if [[ -n "$REMOVABLE_CONTAINERS" ]]; then
+        mapfile -t REMOVABLE_CONTAINERS < <(docker ps -aq)
+        if [[ ${#REMOVABLE_CONTAINERS[@]} -gt 0 ]]; then
             print_info "Shutting down..."
-            # shellcheck disable=SC2086
-            docker stop $REMOVABLE_CONTAINERS > /dev/null
-            # shellcheck disable=SC2086
-            docker rm -f $REMOVABLE_CONTAINERS > /dev/null
+            docker stop "${REMOVABLE_CONTAINERS[@]}" > /dev/null
+            docker rm -f "${REMOVABLE_CONTAINERS[@]}" > /dev/null
         else
             print_info "No containers to stop."
         fi
@@ -407,20 +414,18 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
 
     # remove all stopped containers
     elif [[ "remove" == "$ACTION" ]]; then
-        EXITED_CONTAINERS=$(docker ps -aq -f status="exited")
-        if [[ -n "$EXITED_CONTAINERS" ]]; then
-            # shellcheck disable=SC2086
-            docker rm -f $EXITED_CONTAINERS
+        mapfile -t EXITED_CONTAINERS < <(docker ps -aq -f status="exited")
+        if [[ ${#EXITED_CONTAINERS[@]} -gt 0 ]]; then
+            docker rm -f "${EXITED_CONTAINERS[@]}"
         else
             print_info "No containers to remove."
         fi
 
     # remove all images that are no more in use
     elif [[ "cleanup" == "$ACTION" ]]; then
-        CLEANABLE_CONTAINERS=$(docker images --filter "dangling=true" -q)
-        if [[ -n "$CLEANABLE_CONTAINERS" ]]; then
-            # shellcheck disable=SC2086
-            docker rmi -f $CLEANABLE_CONTAINERS
+        mapfile -t CLEANABLE_IMAGES < <(docker images --filter "dangling=true" -q)
+        if [[ ${#CLEANABLE_IMAGES[@]} -gt 0 ]]; then
+            docker rmi -f "${CLEANABLE_IMAGES[@]}"
         else
             print_info "No unfinished build layers to remove."
         fi
@@ -599,24 +604,22 @@ elif [[ "do" == "$ENVIRONMENT" ]]; then
     elif [[ "self-update" == "$ACTION" || "selfupdate" == "$ACTION" ]]; then
         # get_latest_git_tag will NOT cd us into the $BASE_DIR directory
         LATEST_TAG=$(get_latest_git_tag)
-        cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
+        cd "$BASE_DIR" || { print_error "Could not change directory to $BASE_DIR"; exit 1; }
 
         git checkout --quiet "$LATEST_TAG"
         print_info "Updated the Docker Proxy Stack. Checked out version $LATEST_TAG." 1
 
     # shortcut to list all docker containers
     elif [[ "ps" == "$ACTION" ]]; then
-        PS_COLUMNS=${DOCKER_PS_COLUMNS:-Image|Status|Ports|Names}
-        PS_COLUMNS=${PS_COLUMNS//|/ }
-        PS_COLUMNS_FORMATTED=$(join_by '}}\t{{.' $PS_COLUMNS)
+        IFS='|' read -ra PS_COLUMNS <<< "${DOCKER_PS_COLUMNS:-Image|Status|Ports|Names}"
+        PS_COLUMNS_FORMATTED=$(join_by '}}\t{{.' "${PS_COLUMNS[@]}")
         PS_FORMAT="table {{.$PS_COLUMNS_FORMATTED}}"
 
         docker ps -a --format "$PS_FORMAT"
 
     elif [[ "images" == "$ACTION" ]]; then
-        IMAGES_COLUMNS=${DOCKER_IMAGES_COLUMNS:-Repository|Tag|Size|CreatedSince}
-        IMAGES_COLUMNS=${IMAGES_COLUMNS//|/ }
-        IMAGES_COLUMNS_FORMATTED=$(join_by '}}\t{{.' $IMAGES_COLUMNS)
+        IFS='|' read -ra IMAGES_COLUMNS <<< "${DOCKER_IMAGES_COLUMNS:-Repository|Tag|Size|CreatedSince}"
+        IMAGES_COLUMNS_FORMATTED=$(join_by '}}\t{{.' "${IMAGES_COLUMNS[@]}")
         IMAGES_FORMAT="table {{.$IMAGES_COLUMNS_FORMATTED}}"
 
         docker images --all --format "$IMAGES_FORMAT"

@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 function detect_distro() {
     local CONTAINER=$1
     local DISTRO
@@ -102,7 +104,9 @@ function detect_host_trust_store() {
     local DISTRO DISTRO_LIKE CANDIDATE
 
     # both are read in a subshell, so /etc/os-release does not leak its variables into this script
+    # shellcheck source=/dev/null
     DISTRO="$(. /etc/os-release 2>/dev/null && printf '%s' "${ID:-}")"
+    # shellcheck source=/dev/null
     DISTRO_LIKE="$(. /etc/os-release 2>/dev/null && printf '%s' "${ID_LIKE:-}")"
 
     if [[ -z "$DISTRO" && -f /etc/alpine-release ]]; then
@@ -135,7 +139,7 @@ function detect_host_trust_store() {
 function install_rootca_on_host() {
     local ROOTCA_CRT=$1
     local TRUST_STORE TARGET_DIR UPDATE_COMMAND TARGET_FILE
-    local SUDO_COMMAND=""
+    local -a SUDO_COMMAND=() UPDATE_ARGS=()
 
     if [[ ! -f "$ROOTCA_CRT" ]]; then
         print_error "Could not find the certificate $ROOTCA_CRT." 1
@@ -156,20 +160,23 @@ function install_rootca_on_host() {
             return 1
         fi
 
-        SUDO_COMMAND="sudo"
+        SUDO_COMMAND=(sudo)
     fi
 
     print_info "Installing $ROOTCA_CRT as $TARGET_FILE, which needs root permissions."
 
     # -L resolves symlinks, as the trust store needs the certificate itself
-    if ! ${SUDO_COMMAND} mkdir -p "$TARGET_DIR" || ! ${SUDO_COMMAND} cp -L "$ROOTCA_CRT" "$TARGET_FILE"; then
+    if ! "${SUDO_COMMAND[@]}" mkdir -p "$TARGET_DIR" || ! "${SUDO_COMMAND[@]}" cp -L "$ROOTCA_CRT" "$TARGET_FILE"; then
         print_error "Could not copy $ROOTCA_CRT to $TARGET_FILE." 1
         return 1
     fi
 
-    ${SUDO_COMMAND} chmod 644 "$TARGET_FILE"
+    "${SUDO_COMMAND[@]}" chmod 644 "$TARGET_FILE"
 
-    if ! ${SUDO_COMMAND} ${UPDATE_COMMAND}; then
+    # the update command may consist of a command and its arguments, e.g. 'update-ca-trust extract'
+    read -ra UPDATE_ARGS <<< "$UPDATE_COMMAND"
+
+    if ! "${SUDO_COMMAND[@]}" "${UPDATE_ARGS[@]}"; then
         print_error "The command '$UPDATE_COMMAND' failed, so the rootCA is not trusted, yet." 1
         return 1
     fi

@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # shortcut to get a value from user (stdin) or return a default value
 function match_answer_or_default() {
     local QUESTION=$1
@@ -39,7 +41,7 @@ function get_latest_git_tag() {
     fi
 
     if [[ -d "$BASE_DIR/.git" ]]; then
-        cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
+        cd "$BASE_DIR" || { print_error "Could not change directory to $BASE_DIR"; exit 1; }
         git fetch --tags
 
         local LATEST_TAG
@@ -68,7 +70,7 @@ function get_current_git_tag() {
     fi
 
     if [[ -d "$BASE_DIR/.git" ]]; then
-        cd "$BASE_DIR" || (print_error "Could not change directory to $BASE_DIR" && exit 1)
+        cd "$BASE_DIR" || { print_error "Could not change directory to $BASE_DIR"; exit 1; }
 
         local LATEST_LOG
         if ! LATEST_LOG=$(git log --decorate -1); then
@@ -122,7 +124,7 @@ function check_for_updates() {
         CURRENT_TAG_RESULT=$(get_current_git_tag 0)
 
         local SPLIT_TAG_RESULT
-        SPLIT_TAG_RESULT=(${CURRENT_TAG_RESULT%$'\n'})
+        mapfile -t SPLIT_TAG_RESULT <<< "$CURRENT_TAG_RESULT"
 
         local LATEST_TAG
         LATEST_TAG=$(get_latest_git_tag 0)
@@ -234,6 +236,20 @@ function import_to_database_container() {
 }
 
 # joins an input by given glue on first parameter
+# returns 0, if the first argument equals one of the following arguments exactly
+# usage: is_in_list needle hay1 hay2 hay3
+function is_in_list() {
+    local NEEDLE=$1
+    local ITEM
+    shift
+
+    for ITEM in "$@"; do
+        [[ "$ITEM" == "$NEEDLE" ]] && return 0
+    done
+
+    return 1
+}
+
 # usage: join_by ', ' a b c d
 function join_by() {
   local d=${1-}
