@@ -287,30 +287,39 @@ function copy_certs_to_container() {
         docker exec --user root "$CONTAINER" sh -c "chmod 644 '$CERT_TARGET_DIR/$filename'"
     done
 
+    # package managers and trust store updates need root, regardless of the default user of the image;
+    # a missing package install is tolerable (e.g. offline), as long as the trust store update succeeds
+    local TRUST_UPDATED=0
+
     case "$DISTRO_FAMILY" in
         debian|alpine)
             case "$DISTRO_FAMILY" in
                 debian)
-                    docker exec "$CONTAINER" sh -c "DEBIAN_FRONTEND=noninteractive apt-get update -qq > /dev/null 2>&1 && \
+                    docker exec --user root "$CONTAINER" sh -c "DEBIAN_FRONTEND=noninteractive apt-get update -qq > /dev/null 2>&1 && \
                         apt-get install -y -qq ca-certificates > /dev/null 2>&1"
                     ;;
                 alpine)
-                    docker exec "$CONTAINER" sh -c "apk add --no-cache ca-certificates > /dev/null 2>&1"
+                    docker exec --user root "$CONTAINER" sh -c "apk add --no-cache ca-certificates > /dev/null 2>&1"
                     ;;
             esac
-            docker exec "$CONTAINER" sh -c "update-ca-certificates > /dev/null 2>&1"
+            docker exec --user root "$CONTAINER" sh -c "update-ca-certificates > /dev/null 2>&1" && TRUST_UPDATED=1
             ;;
         rhel)
-            docker exec "$CONTAINER" sh -c "
+            docker exec --user root "$CONTAINER" sh -c "
                 if command -v dnf >/dev/null 2>&1; then
                     dnf install -y -q ca-certificates > /dev/null 2>&1
                 else
                     yum install -y -q ca-certificates > /dev/null 2>&1
                 fi
             "
-            docker exec "$CONTAINER" sh -c "update-ca-trust extract > /dev/null 2>&1"
+            docker exec --user root "$CONTAINER" sh -c "update-ca-trust extract > /dev/null 2>&1" && TRUST_UPDATED=1
             ;;
     esac
+
+    if [[ $TRUST_UPDATED -ne 1 ]]; then
+        print_warning "Copied certificates to container '${CONTAINER_NAME:-$CONTAINER}', but could not update its trust store."
+        return
+    fi
 
     print_info "Installed certificates to container '${CONTAINER_NAME:-$CONTAINER}'."
 }
